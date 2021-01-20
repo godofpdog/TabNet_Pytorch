@@ -52,6 +52,19 @@ class _Test:
             print(r.size())
 
     @classmethod
+    def test_embedding_encoder(cls):
+        import numpy as np
+        from sklearn.datasets import load_boston
+        from src.model import EmbeddingEncoder
+
+        X, y = load_boston(return_X_y=True)
+        new_feats = np.random.choice((0, 1, 2, 5), size=X.shape[1])
+
+        print('X : ', X.shape)
+        print(new_feats.shape)
+        print(new_feats)
+
+    @classmethod
     def test_dataset(cls):
         from sklearn.datasets import load_boston
         from sklearn.model_selection import train_test_split
@@ -95,4 +108,4 @@ class _Test:
 
 
 if __name__ == '__main__':
-    _Test.test_tab_encoder()
+    _Test.test_embedding_encoder()

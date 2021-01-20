@@ -24,9 +24,9 @@ class TabNetBase(abc.ABC):
         :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
         :params num_shared: Number of shared fully-connected layers cross all steps. (int)
         :params gamma: Scaling factor for attention updates (float) 
-        :params cate_indices: Indices of categorical features. (list of int)
-        :params cate_dims: Number of categories in each categorical features. (list of int)
-        :params cate_embed_dims: Dimension of representation of embedding layer. (int)
+        :params cate_indices: Indices of categorical features. (list of int or int)
+        :params cate_dims: Number of categories in each categorical features. (list of int or int)
+        :params cate_embed_dims: Dimensions of representation of embedding layer. (list of int or int)
         :params batch_size: Sample size of one batch data. (int)
         :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
         :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
@@ -64,7 +64,8 @@ class TabNetBase(abc.ABC):
 
     def _build_encoder(self):
         self._encoder = TabNetEncoder(
-            self.input_dims, self.reprs_dims, self.atten_dims, self.num_steps, self.gamma, self.num_indep, self.num_shared, self.virtual_batch_size, self.momentum, self.mask_type
+            self.input_dims, self.reprs_dims, self.atten_dims, self.num_steps, self.gamma, 
+            self.num_indep, self.num_shared, self.virtual_batch_size, self.momentum, self.mask_type
         )
 
     def _build_decoder(self):

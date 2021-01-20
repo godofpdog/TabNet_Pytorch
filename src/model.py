@@ -267,10 +267,13 @@ class TabNetEncoder(nn.Module):
         
     
 class TabNetHead(nn.Module):
+    """
+    Implementation of tabnet for the downstream tasks. Multi-task is avariable.
+    """
     def __init__(self, reprs_dims, output_dims):
         super(TabNetHead, self).__init__()
         """
-        Implementation of tabnet for the downstream tasks. Multi-task is avariable.
+        Initialization of `TabNetHead` module.
         :params: reprs_dims: Dimension of decision representation. (int)
         :params: output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
         """
@@ -351,31 +354,24 @@ class TabNetDecoder(nn.Module):
             o = self.dense_layers[step]
 
 
-class _LabelEncoderContainer:
-    def __init__(self):
-        self._label_encoders = None 
-
-    def add_encoder(self, encoder):
-        if self._label_encoders is None:
-            self._label_encoders = []
-        self._label_encoders.append(encoder)
-
-    def check_data(self):
-        raise NotImplementedError
-
-    def __call__(self, x, index):
-        return self._label_encoders[index](x)
-
-
 class EmbeddingEncoder(nn.Module):
     """
     Implementation of Embedding Encoder for simple data pre-processing of raw input features. 
 
     Note: `Unseen class in inference phase` issue
     """
-    def __init__(self, input_dims, cate_indices, cate_dims, embed_dims, unique_values_path=None):
-        super(EmbeddingEncoder, self).__init__():
-
+    def __init__(self, input_dims, cate_indices, cate_dims, embed_dims):
+        super(EmbeddingEncoder, self).__init__()
+        """
+        Initialization of `EmbeddingEncoder` module.
+        :params input_dims: Dimension of input raw features. (int)
+        :params cate_indices: Indices of categorical features. (list of int or int)
+        :params cate_dims: Number of categories in each categorical features. (list of int or int)
+        :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
+        :params unique_values_path:
+        """
+        self._is_skip = False 
+        
         if isinstance(cate_indices, int):
             cate_indices = [cate_indices]
 
@@ -394,23 +390,42 @@ class EmbeddingEncoder(nn.Module):
             raise ValueError('`cate_indices` and `cate_embed_dims` must have same length, but got {} and {}.'\
                 .format(len(cate_indices), len(cate_embed_dims)))
         
-        self._is_skip = False 
+        self.sorted_indices = np.argsort(cate_indices)
+        self.cate_dims = [cate_dims[i] for i in self.sorted_indices]
+        self.embed_dims = [embed_dims[i] for i in self.sorted_indices]
         self.output_dims = int(input_dims + np.sum(cate_embed_dims) - len(cate_embed_dims))
-    
-        self.input_dims = input_dims
-        self.cate_indices = cate_indices 
-        self.cate_embed_dims = cate_embed_dims
-        self.label_encoder_path = label_encoder_path
 
-        self._build()
-
-    def _build(self):
+        # build models
         self.embedding_layers = nn.ModuleList()
+    
+        for cate_dim, embed_dim in zip(self.cate_dims, self.embed_dims):
+            self.embedding_layers.append(
+                nn.Embedding(cate_dim, embed_dim)
+            )
 
-        sorted_indices = np.argsort(self.cate_indices)
+        # conti indices
+        self.conti_indices = torch.ones(input_dims, dtype=torch.bool)
+        self.conti_indices[self.conti_indices] = 0
         
-        for index in sorted_indices:
 
+    def forward(self, x):
+        outputs = []
+        cnt = 0
+
+        if self._is_skip:
+            return x
+
+        for i, is_conti in enumerate(self.conti_indices):
+
+            if is_conti:
+                outputs.append(
+                    self.embedding_layers[cnt](x[:, i].long())
+                )
+
+                cnt +=1
+
+        return torch.cat(outputs, dim=1)
+            
 
 
 
