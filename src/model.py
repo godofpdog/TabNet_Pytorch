@@ -373,26 +373,45 @@ class EmbeddingEncoder(nn.Module):
 
     Note: `Unseen class in inference phase` issue
     """
-    def __init__(self, cate_indices, cate_embed_dims, label_encoder_path=None):
+    def __init__(self, input_dims, cate_indices, cate_dims, embed_dims, unique_values_path=None):
         super(EmbeddingEncoder, self).__init__():
 
-        if isinstance()
+        if isinstance(cate_indices, int):
+            cate_indices = [cate_indices]
+
+        if isinstance(cate_dims, int):
+            cate_dims = [cate_dims]
+
+        if cate_indices == [] or cate_dims == []:
+            self._is_skip = True 
+            self.output_dims = input_dims
+            return 
+
+        if isinstance(cate_embed_dims, int):
+            cate_embed_dims = [cate_embed_dims] * len(cate_indices)
+
+        if len(cate_indices) != len(cate_embed_dims):
+            raise ValueError('`cate_indices` and `cate_embed_dims` must have same length, but got {} and {}.'\
+                .format(len(cate_indices), len(cate_embed_dims)))
+        
+        self._is_skip = False 
+        self.output_dims = int(input_dims + np.sum(cate_embed_dims) - len(cate_embed_dims))
+    
+        self.input_dims = input_dims
         self.cate_indices = cate_indices 
         self.cate_embed_dims = cate_embed_dims
         self.label_encoder_path = label_encoder_path
 
-        if label_encoder_path is not None:
-            self._load_label_encoder(label_encoder_path)
-        else:
-            self._fit_label_encoder()
-
         self._build()
 
-    def _load_label_encoder(self, path):
-        pass 
-
     def _build(self):
+        self.embedding_layers = nn.ModuleList()
+
+        sorted_indices = np.argsort(self.cate_indices)
         
+        for index in sorted_indices:
+
+
 
 
 
