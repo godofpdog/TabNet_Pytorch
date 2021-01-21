@@ -2,6 +2,7 @@
 
 import torch
 import pickle
+import numpy as np
 import torch.nn as nn
 from .sparsemax import Sparsemax, Entmax15
 
@@ -237,12 +238,15 @@ class TabNetEncoder(nn.Module):
                 )
             )
 
-    def forward(self, x, prior=None):
+    def forward(self, x, is_explain=False):
         m_loss = 0
         outputs = []
 
-        if prior is None:
-            prior = torch.ones_like(x).to(x.device)
+        prior = torch.ones_like(x).to(x.device)
+
+        if is_explain:
+            m_explain = torch.zeros(x.shape).to(x.device)
+            masks = dict()
 
         x = self.input_bn(x)
         atten = self.input_splitter(x)[:, self.reprs_dims:]
@@ -257,15 +261,40 @@ class TabNetEncoder(nn.Module):
             feats = nn.ReLU()(output[:, :self.reprs_dims])
             outputs.append(feats)
             atten = output[:, self.reprs_dims:]
+
+            if is_explain:
+                masks[step] = m
+                step_contrib = torch.sum(feats, dim=1)
+                m_explain += torch.mul(m, step_contrib.unsqueeze(dim=1))
         
         m_loss /= self.num_steps 
 
+        if is_explain:
+            return outputs, m_loss, m_explain, masks
+
         return outputs, m_loss
 
-    def forward_mask(self):
-        return 
+    def explain(self, x):
+        prior = torch.ones_like(x).to(x.device)
+        m_explain = torch.zeros(x.shape).to(x.device)
+        masks = dict()
+
+        x = self.input_bn(x)
+        atten = self.input_splitter(x)[:, self.reprs_dims:]
+
+        for step in range(self.num_steps):
+            m = self.atten_transformers[step](prior, atten)
+            prior = torch.mul(self.gamma - m, prior)
+            output = self.feats_transformers[step](torch.mul(m, x))
+            atten = output[:, self.reprs_dims:]
+            feats = nn.ReLU()(output[:, :self.reprs_dims])
+            masks[step] = m
+            step_contrib = torch.sum(feats, dim=1)
+            m_explain += torch.mul(m, step_contrib.unsqueeze(dim=1))
         
-    
+        return m_explain, masks
+
+
 class TabNetHead(nn.Module):
     """
     Implementation of tabnet for the downstream tasks. Multi-task is avariable.
@@ -288,6 +317,7 @@ class TabNetHead(nn.Module):
             self.heads.append(
                 nn.Linear(self.reprs_dims, self.output_dims, bias=False)
             )
+
         else:
             for dims in self.output_dims:
                 self.heads.append(
@@ -336,7 +366,7 @@ class TabNetDecoder(nn.Module):
             shared_layers = None 
 
         # build step-specified layers
-        for step in range(self.num_steps):
+        for _ in range(self.num_steps):
             self.feats_transformers.append(
                 FeatureTransformer(self.reprs_dims, self.reprs_dims, shared_layers, self.num_indep, self.virtual_batch_size, self.momentum)
             )
@@ -383,17 +413,20 @@ class EmbeddingEncoder(nn.Module):
             self.output_dims = input_dims
             return 
 
-        if isinstance(cate_embed_dims, int):
-            cate_embed_dims = [cate_embed_dims] * len(cate_indices)
+        if isinstance(embed_dims, int):
+            embed_dims = [embed_dims] * len(cate_indices)
 
-        if len(cate_indices) != len(cate_embed_dims):
-            raise ValueError('`cate_indices` and `cate_embed_dims` must have same length, but got {} and {}.'\
-                .format(len(cate_indices), len(cate_embed_dims)))
+        if len(cate_indices) != len(embed_dims):
+            raise ValueError('`cate_indices` and `embed_dims` must have same length, but got {} and {}.'\
+                .format(len(cate_indices), len(embed_dims)))
         
         self.sorted_indices = np.argsort(cate_indices)
+
+        print(cate_indices)
+        self.cate_indices = [cate_indices[i] for i in self.sorted_indices]
         self.cate_dims = [cate_dims[i] for i in self.sorted_indices]
         self.embed_dims = [embed_dims[i] for i in self.sorted_indices]
-        self.output_dims = int(input_dims + np.sum(cate_embed_dims) - len(cate_embed_dims))
+        self.output_dims = int(input_dims + np.sum(embed_dims) - len(embed_dims))
 
         # build models
         self.embedding_layers = nn.ModuleList()
@@ -405,8 +438,7 @@ class EmbeddingEncoder(nn.Module):
 
         # conti indices
         self.conti_indices = torch.ones(input_dims, dtype=torch.bool)
-        self.conti_indices[self.conti_indices] = 0
-        
+        self.conti_indices[self.cate_indices] = 0
 
     def forward(self, x):
         outputs = []
@@ -418,6 +450,12 @@ class EmbeddingEncoder(nn.Module):
         for i, is_conti in enumerate(self.conti_indices):
 
             if is_conti:
+                
+                outputs.append(
+                    x[:, i].float().view(-1, 1)
+                )
+
+            else:
                 outputs.append(
                     self.embedding_layers[cnt](x[:, i].long())
                 )
@@ -427,7 +465,6 @@ class EmbeddingEncoder(nn.Module):
         return torch.cat(outputs, dim=1)
             
 
-
-
-
-            
+class ForwardModel(nn.Module):
+    def __init__(self):
+        super(ForwardModel, self).__init__()

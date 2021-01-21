@@ -9,7 +9,7 @@ class _Test:
     
     @classmethod
     def test_gbn(cls):
-        from src.model import GhostBatchNorm
+        from src.core.model import GhostBatchNorm
 
         x = torch.randn(256, 100)
         gbn = GhostBatchNorm(100, 64)
@@ -19,7 +19,7 @@ class _Test:
     @classmethod
     def test_tab_encoder(cls):
         import torch 
-        from src.model import TabNetEncoder
+        from src.core.model import TabNetEncoder
         
         input_dims_ = 64
         batch_size_ = 256
@@ -31,13 +31,23 @@ class _Test:
         print(tab_encoder)
         print(mask_loss)
 
+        print('========== test forward ==========')
+
         for output in outputs:
             print(output.size())
+
+        print('========== test explain ==========')
+
+        m_explain, masks = tab_encoder.explain(x)
+
+        print(m_explain)
+        print(masks.keys())
+        print(masks)
         
 
     @classmethod
     def test_tab_head(cls):
-        from src.model import TabNetHead
+        from src.core.model import TabNetHead
 
         reprs_dims_ = 8
         output_dims_ = [1, 3, 5]
@@ -53,22 +63,40 @@ class _Test:
 
     @classmethod
     def test_embedding_encoder(cls):
+        import torch
         import numpy as np
         from sklearn.datasets import load_boston
-        from src.model import EmbeddingEncoder
+        from src.core.model import EmbeddingEncoder
 
-        X, y = load_boston(return_X_y=True)
-        new_feats = np.random.choice((0, 1, 2, 5), size=X.shape[1])
+        X, _ = load_boston(return_X_y=True)
+        cates_feats = np.random.choice((0, 1, 2), size=X.shape[0])
 
         print('X : ', X.shape)
-        print(new_feats.shape)
-        print(new_feats)
+        print('cates_feats : ', cates_feats.shape)
+        print(cates_feats)
+
+        cate_X = np.hstack((X, cates_feats.reshape(-1, 1)))
+        print(cate_X.shape)
+
+        input_dims = cate_X.shape[1]
+        cate_indices = [13]
+        cate_dims = [3]
+        embed_dims = 32
+
+        embedding_encoder = EmbeddingEncoder(
+            input_dims, cate_indices, cate_dims, embed_dims
+        )
+
+        embeds = embedding_encoder(torch.from_numpy(cate_X))
+
+        print(embeds.size())
+
 
     @classmethod
     def test_dataset(cls):
         from sklearn.datasets import load_boston
         from sklearn.model_selection import train_test_split
-        from src.data import TabularDataset
+        from src.core.data import TabularDataset
 
         X, y = load_boston(return_X_y=True)
 
@@ -92,7 +120,7 @@ class _Test:
     @classmethod
     def test_data_loader(cls):
         from sklearn.datasets import load_boston
-        from src.data import create_data_loader
+        from src.core.data import create_data_loader
 
         X, y = load_boston(return_X_y=True)
 
@@ -108,4 +136,4 @@ class _Test:
 
 
 if __name__ == '__main__':
-    _Test.test_embedding_encoder()
+    _Test.test_tab_encoder()

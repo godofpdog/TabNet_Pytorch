@@ -9,9 +9,9 @@ from sklearn.preprocessing import LabelEncoder
 # TODO
 # handlers.py
 
-class _BaseHandler(abc.ABC):
+class _BasePreprocessor(abc.ABC):
     """
-    Implementation of handler base class.
+    Implementation of preprocessor base class.
     """
     def __init__(self):
         pass 
@@ -34,33 +34,18 @@ class _BaseHandler(abc.ABC):
         return self.fit(x).infer(x)
 
 
-class _LabelEncoderContainer(_BaseHandler):
-    def __init__(self):
-        self._label_encoders = None 
-
-    def add_encoder(self, encoder):
-        if self._label_encoders is None:
-            self._label_encoders = []
-        self._label_encoders.append(encoder)
-
-    def check_data(self):
-        raise NotImplementedError
-
-    def __call__(self, x, index):
-        return self._label_encoders[index](x)
-
-
-class CategoricalHandler(_BaseHandler):
+class CatePreprocessor(_BasePreprocessor):
     """
-
+    Implementation of `CatePreprocessor` module which is enable to 
+    transform the categorical features to the embedding dimension.
     """
     def __init__(self):
-        super(CategoricalHandler, self).__init__()
+        super(CatePreprocessor, self).__init__()
         self._label_encoders = []
 
     def fit(self, input_features, cate_indices):
         """
-        Fit CategoricalHendler.
+        Fit CatePreprocessor.
         :params input_features: Input raw features. (np.ndarray, pd.DataFrame)
         :params cate_indices: Indices of categorical features. (int or list of int)
         :return self
@@ -74,7 +59,7 @@ class CategoricalHandler(_BaseHandler):
             cate_indices = [cate_indices]
         self.cate_indices = cate_indices
 
-        for index in self.cate_indices:
+        for _ in self.cate_indices:
             self._label_encoders.append(
                 LabelEncoder().fit(input_features)
             )
@@ -100,12 +85,11 @@ class CategoricalHandler(_BaseHandler):
         cate_dims = []
 
         for i, index in self.cate_indices:
-            feats = x[..., index].reshape(-1)
+            feats = input_features[..., index].reshape(-1)
             trans[..., index] = self._label_encoders[i].transform(feats)
             cate_dims.append(len(self._label_encoders[i].classes_))
 
         return trans, cate_dims
-
 
     def check_infer_data(self, x):
         """
@@ -122,6 +106,8 @@ class CategoricalHandler(_BaseHandler):
                 raise ValueError('Unseen category in fitting phase.')
         
         return None 
+
+
         
 
 
