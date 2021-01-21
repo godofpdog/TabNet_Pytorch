@@ -1,6 +1,7 @@
 """ Implementation of base classes in this repo. """
 
 import abc 
+import torch
 from sklearn.base import BaseEstimator
 from .model import TabNetHead, TabNetEncoder, TabNetDecoder
 from .data import create_data_loader
@@ -105,8 +106,35 @@ class TabNetBase(abc.ABC, BaseEstimator):
         return train_loader, valid_loader
 
 
-    def fit(self, feats, targets, batch_size=1024, optimizer=None, optimizer_params=None, scheduler=None, valid_feats=None, valid_targets=None):
+    def fit(
+        self, feats, targets, batch_size=1024, max_epochs=2000, optimizer=None, optimizer_params=None, 
+        metrics=None, scheduler=None, valid_feats=None, valid_targets=None, valid_metrics=None
+    ):
+        """
+        Fit TabNet model.
+        :params feats: Training features. (np.ndarray or pd.DataFrame)
+        :params targets: Training targets. (np.ndarray or pd.DataFrame)
+        :params batch_size: Batch size. (int)
+        :params max_epochs: Max training epochs. (int)
+        :params optimizer: Optimizer. (subclass of torch.optim.optimizer.Optimizer)
+        :params optimizer_params: Parameters of optimizer. (dict)
+        :params metrics: Evaluate metrics. (str or function?)
+        :params scheduler: Training scheduler. (str or ??)
+        :params valid_feats: Validation features. (np.ndarray or pd.DataFrame)
+        :params valid_targets: Validation targets. (np.ndarray or pd.DataFrame)
+        :params valid_metrics: Evaluation metrics for validation set. (str or ??)
+        """
+        self.batch_size = batch_size
+        self.max_epochs = max_epochs
+        self.optimizer = optimizer
+        self.optimizer_params = optimizer_params
+        self.metrics = metrics
+        self.scheduler = scheduler
+        self.valid_metrics = valid_metrics
+
         self._update_fit_params()
+
+
         train_loader, valid_loader = self._create_data_loaders(feats, targets, valid_feats, valid_targets)
 
         # main loop

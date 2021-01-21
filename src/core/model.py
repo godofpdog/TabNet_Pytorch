@@ -134,12 +134,18 @@ class FeatureTransformer(nn.Module):
         super(FeatureTransformer, self).__init__()
         """
         Initialization of `FeatureTransformer` module.
-        :params input_dims: Dimension of input features. (int)
-        :params output_dims: Dimension of output features. (int)
-        :params shared_layers: Shared fully-connected layers cross all steps (torch.nn.Linear)
-        :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
-        :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
-        :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
+
+        Arguments:
+            input_dims (int): Dimension of input features. 
+            output_dims (int): Dimension of output features. 
+            shared_layers (torch.nn.Linear): Shared fully-connected layers cross all steps 
+            num_indep (int): Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
+            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
+            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+
+        Returns:
+            None
+            
         """
         is_first = True
         
