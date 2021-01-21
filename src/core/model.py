@@ -43,7 +43,10 @@ class FeatureBlock(nn.Module):
     """
     Computational block for feature extraction, contains `num_glu` of `GLUBlock`.
     """
-    def __init__(self, input_dims, output_dims, shared_layers=None, num_glu=2, is_first=False, virtual_batch_size=128, momentum=0.02):
+    def __init__(
+        self, input_dims, output_dims, shared_layers=None, num_glu=2, 
+        is_first=False, virtual_batch_size=128, momentum=0.02
+    ):
         super(FeatureBlock, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
@@ -162,11 +165,15 @@ class FeatureTransformer(nn.Module):
 
 
 class TabNetEncoder(nn.Module):
+    """
+    Implementation of the TabNet Encoder for feature extraction.
+    """
     def __init__(
         self, input_dims, reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, 
-        num_indep=2, num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'):
+        num_indep=2, num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'
+    ):
         """ 
-        Implementation of the TabNet Encoder.
+        Initialization of the `TabNetEncoder` module.
         :params input_dims: Dimension of input features from `EmbeddingEncoder`. (int)
         :params reprs_dims: Dimension of decision representaion. (int)
         :params atten_dims: Dimension of attentive features. (int)
@@ -297,7 +304,7 @@ class TabNetEncoder(nn.Module):
 
 class TabNetHead(nn.Module):
     """
-    Implementation of tabnet for the downstream tasks. Multi-task is avariable.
+    Implementation of tabnet for the downstream tasks. Multi-task is available .
     """
     def __init__(self, reprs_dims, output_dims):
         super(TabNetHead, self).__init__()
@@ -333,7 +340,10 @@ class TabNetHead(nn.Module):
 
 
 class TabNetDecoder(nn.Module):
-    def __init__(self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, num_shared=2, virtual_batch_size=128, momentum=0.02):
+    def __init__(
+        self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, 
+        num_shared=2, virtual_batch_size=128, momentum=0.02
+    ):
         super(TabNetDecoder, self).__init__()
         self.input_dims = input_dims
         self.reprs_dims = reprs_dims
@@ -462,18 +472,96 @@ class EmbeddingEncoder(nn.Module):
 
 class InferenceModel(nn.Module):
     """
-    Implementation of Inference Model which contain three sub-modules, 
+    Implementation of Inference Model which contain three sub-modules:
     (1) `EmbeddingEncoder` for categorical features preprocessing.
     (2) `TabNetEncoder` for feature extraction.
     (3) `TabNetHead` for the specific tasks.  
     """
+    # def __init__(
+    #     self, input_dims, output_dims, cate_indices, cate_dims, embed_dims, 
+    #     reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, num_indep=2, 
+    #     num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'
+    # ):
+    #     super(InferenceModel, self).__init__()
+    #     """
+    #     Initialization of `InferenceModel` module.
+    #     :params input_dims: Dimension of input raw features. (int)
+    #     :params output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
+    #     :params cate_indices: Indices of categorical features. (list of int or int)
+    #     :params cate_dims: Number of categories in each categorical features. (list of int or int)
+    #     :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
+    #     :params reprs_dims: Dimension of decision representaion. (int)
+    #     :params atten_dims: Dimension of attentive features. (int)
+    #     :params num_steps: Number of decision steps. (int)
+    #     :params gamma: Scaling factor for attention updates (float)
+    #     :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
+    #     :params num_shared: Number of shared fully-connected layers cross all steps. (int)
+    #     :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
+    #     :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
+    #     :params mask_type: Mask type in `AttentiveTransformer`. (str)
+    #     """
+    #     self.embedding_encoder = EmbeddingEncoder(
+    #         input_dims, cate_indices, cate_dims, embed_dims
+    #     )
+
+    #     self.tabnet_encoder = TabNetEncoder(
+    #         self.embedding_encoder.output_dims, reprs_dims, atten_dims, num_steps,
+    #         gamma, num_indep, num_shared, virtual_batch_size, momentum, mask_type
+    #     )
+
+    #     self.head = TabNetHead(
+    #         reprs_dims=reprs_dims, output_dims=output_dims
+    #     )
+
+    def __init__(self, embedding_encoder, tabnet_encoder, tabnet_head):
+        super(InferenceModel, self).__init__()
+        self.embedding_encoder = embedding_encoder 
+        self.tabnet_encoder = tabnet_encoder
+        self.tabnet_head = tabnet_head
+
+    def forward(self, x, is_explain=False):
+        x = self.embedding_encoder(x)
+
+        if is_explain:
+            d_reprs, m_loss, m_explain, masks = \
+                self.tabnet_encoder(x)
+        else:
+            d_reprs, m_loss = self.tabnet_encoder(x)
+
+        outputs = self.tabnet_head(
+            torch.sum(torch.stack(d_reprs, dim=0), dim=0)
+        )
+
+        if is_explain:
+            return outputs, m_loss, m_explain, masks
+
+        return outputs, m_loss
+
+    def explain(self, x):
+        x = self.embedding_encoder(x)
+        return self.tabnet_encoder.explain(x)
+
+
+class PretrainModel(nn.Module):
+    """
+    Implementation of the pre-train model for encoder model pre-training.
+
+    The `PretrainModel` module contain threee sub-modules:
+    (1) `EmbeddingEncoder` for categorical features preprocessing.
+    (2) `TabNetEncoder` for feature extraction.
+    (3) `PretextTaskModel` for self-supervised learning. (subclass of `PretextTaskModel`)
+
+    `PretrainModel`-to-`InferenceModel` conversion is available by calling `convert_model` function.
+    
+    """
     def __init__(
         self, input_dims, output_dims, cate_indices, cate_dims, embed_dims, 
         reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, num_indep=2, 
-        num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'):
-        super(InferenceModel, self).__init__()
+        num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'
+    ):
+        super(PretrainModel, self).__init__()
         """
-        Initialization of `InferenceModel` module.
+        Initialization of the `PretrainModel` module.
         :params input_dims: Dimension of input raw features. (int)
         :params output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
         :params cate_indices: Indices of categorical features. (list of int or int)
@@ -488,7 +576,9 @@ class InferenceModel(nn.Module):
         :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
         :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
         :params mask_type: Mask type in `AttentiveTransformer`. (str)
+        :params pretext_configs: Configurations of building a pretext task model. (dict or None)
         """
+
         self.embedding_encoder = EmbeddingEncoder(
             input_dims, cate_indices, cate_dims, embed_dims
         )
@@ -498,28 +588,11 @@ class InferenceModel(nn.Module):
             gamma, num_indep, num_shared, virtual_batch_size, momentum, mask_type
         )
 
-        self.head = TabNetHead(
-            reprs_dims=reprs_dims, output_dims=output_dims
-        )
+        self.pretext_model = None 
 
-    def forward(self, x, is_explain=False):
+    def forward(self, x):
         x = self.embedding_encoder(x)
+        d_reprs, m_loss = self.tabnet_encoder(x)
+        reconstruction = self.pretext_model(d_reprs)
 
-        if is_explain:
-            d_reprs, m_loss, m_explain, masks = \
-                self.tabnet_encoder(x)
-        else:
-            d_reprs, m_loss = self.tabnet_encoder(x)
-
-        outputs = self.head(
-            torch.sum(torch.stack(d_reprs, dim=0), dim=0)
-        )
-
-        if is_explain:
-            return outputs, m_loss, m_explain, masks
-
-        return outputs, m_loss
-
-    def explain(self, x):
-        x = self.embedding_encoder(x)
-        return self.tabnet_encoder.explain(x)
+        return reconstruction, m_loss

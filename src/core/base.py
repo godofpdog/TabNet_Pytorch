@@ -4,16 +4,18 @@ import abc
 from sklearn.base import BaseEstimator
 from .model import TabNetHead, TabNetEncoder, TabNetDecoder
 from .data import create_data_loader
+from .model_builder import load_weights, build_model
 
 
-class TabNetBase(abc.ABC):
+
+class TabNetBase(abc.ABC, BaseEstimator):
     """
     Implementation of tabnet base class.
     """
     def __init__(
         self, input_dims, output_dims, reprs_dims=8, atten_dims=8, num_steps=3, num_indep=2, num_shared=2, gamma=1.3, 
         cate_indices=None, cate_dims=None, cate_embed_dims=None, batch_size=1024, virtual_batch_size=128, momentum=0.03,
-        is_shuffle=True, num_workers=4, pin_memory=True, device=None, mask_type='sparsemax', verbose=0):
+        is_shuffle=True, num_workers=4, pin_memory=True, device=None, mask_type='sparsemax', logger=None):
         """
         Initialization of `TabNetBase`.
         :params input_dims: Dimension of input features. (int)
@@ -34,7 +36,7 @@ class TabNetBase(abc.ABC):
         :params num_workers: Number of thread for data loader. (int)
         :params pin_memory:
         :params device: Usage decvice. (str or list of int)
-        :params verbose:
+        :params logger:
         """
         self.input_dims = input_dims
         self.output_dims = output_dims
@@ -56,14 +58,34 @@ class TabNetBase(abc.ABC):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.device = device
+        self.logger = logger
 
         self._model = None 
 
-    def load_weights(self, path, model_type):
-        pass 
+    def load_weights(self, path, model_type='inference'):
+        """
+        Load model weights. 
+        Build model architecture if `self._model` is None. 
+        """
 
-    def set_params(self):
-        pass 
+        if not isinstance(model_type, ('inference', 'pretrain')):
+            raise TypeError('Not supported model type (`inference` or `pretrain`)')
+        
+        if self._model is not None:
+
+            try:
+                load_weights(self._model, path)
+
+            except Exception as e:
+
+                if self.logger is not None:
+                    self.logger.warning(
+                        ' Failde to load weights from {}'.format(path)
+                    )
+                    self.logger.debug(e)
+
+        else:
+            build_model()
 
     def _update_fit_params(self):
         pass
