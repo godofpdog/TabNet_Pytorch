@@ -11,8 +11,24 @@ _EPSILON = 1e-15
 
 
 class GhostBatchNorm(nn.Module):
+    """
+    Implementation of the Ghost Batch Normalization 
+    as described in the paper: https://arxiv.org/abs/1705.08741
+    """
     def __init__(self, input_dims, virtual_batch_size, momentum=0.01):
         super(GhostBatchNorm, self).__init__()
+        """
+        Initialization of `GhostBatchNorm` module.
+
+        Arguments:
+            input_dims (int): Dimension of input features.
+            virtual_batch_size (int): Virtual batch size.
+            momentum (float): Momentum parameters.
+
+        Returns:
+            None
+
+        """
         self.input_dims = input_dims
         self.virtual_batch_size = virtual_batch_size
         self.bn = nn.BatchNorm1d(self.input_dims, momentum=momentum)
@@ -23,8 +39,26 @@ class GhostBatchNorm(nn.Module):
 
 
 class GLUBlock(nn.Module):
+    """
+    Implementation of `GLUBlock` which contains fully-connected layer, 
+    Ghost Batch Normalization layer and a Gate Linear Unit architectires. 
+    """
     def __init__(self, input_dims, output_dims, share_layer, virtual_batch_size, momentum):
         super(GLUBlock, self).__init__()
+        """
+        Initialization of `GLUBlock` module.
+
+        Arguments:
+            input_dims (int): Dimension of input features. 
+            output_dims (int): Dimension of output features. 
+            shared_layer (torch.nn.Linear): Shared fully-connected layer cross all steps.
+            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
+            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+        
+        Returns:
+            None
+
+        """
         self.output_dims = output_dims
 
         if share_layer is not None:
@@ -47,6 +81,22 @@ class FeatureBlock(nn.Module):
         self, input_dims, output_dims, shared_layers=None, num_glu=2, 
         is_first=False, virtual_batch_size=128, momentum=0.02
     ):
+        """
+        Initialization if `FeatureBlock` module.
+
+        Arguments:
+            input_dims (int): Dimension of input features. 
+            output_dims (int): Dimension of output features. 
+            shared_layers (torch.nn.Linear): Shared fully-connected layers cross all steps.
+            num_glu (int): Number of `GLUBlock` in the module.
+            is_first (bool): If True, means that this module is the first layer of the TabNet model. (different `inout_dims` in `GLUBlock`).
+            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
+            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+
+        Returns:
+            None
+
+        """
         super(FeatureBlock, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
@@ -101,11 +151,17 @@ class AttentiveTransformer(nn.Module):
         super(AttentiveTransformer, self).__init__()
         """
         Initialization of `AttentiveTransformer` module.
-        :params input_dims: Dimension of input features from `FeatureTransformer`. (int)
-        :params output_dims: Dimension of output mask, equal to the dimension of input features (number of columns in tabular data). (int)
-        :params virtual_batch_size:  Virtual batch size in `GhostBatchNorm` module. (int)
-        :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
-        :params mask_type: Mask type in `AttentiveTransformer`. (str)
+
+        Arguments:
+            input_dims (int): Dimension of input features from `FeatureTransformer`. 
+            output_dims (int): Dimension of output mask, equal to the dimension of input features (number of columns in tabular data). 
+            virtual_batch_size (int):  Virtual batch size in `GhostBatchNorm` module. 
+            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+            mask_type (str): Mask type in `AttentiveTransformer`. 
+        
+        Returns:
+            None
+
         """
         self.fc = nn.Linear(input_dims, output_dims, bias=False)
         self.gbn = GhostBatchNorm(output_dims, virtual_batch_size, momentum)
@@ -145,7 +201,7 @@ class FeatureTransformer(nn.Module):
 
         Returns:
             None
-            
+
         """
         is_first = True
         
@@ -180,16 +236,22 @@ class TabNetEncoder(nn.Module):
     ):
         """ 
         Initialization of the `TabNetEncoder` module.
-        :params input_dims: Dimension of input features from `EmbeddingEncoder`. (int)
-        :params reprs_dims: Dimension of decision representaion. (int)
-        :params atten_dims: Dimension of attentive features. (int)
-        :params num_steps: Number of decision steps. (int)
-        :params gamma: Scaling factor for attention updates (float)
-        :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
-        :params num_shared: Number of shared fully-connected layers cross all steps. (int)
-        :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
-        :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
-        :params mask_type: Mask type in `AttentiveTransformer`. (str)
+
+        Arguments:
+            input_dims (int): Dimension of input features from `EmbeddingEncoder`. 
+            reprs_dims (int): Dimension of decision representaion. 
+            atten_dims (int): Dimension of attentive features. 
+            num_steps (int): Number of decision steps. 
+            gamma (float): Scaling factor for attention updates 
+            num_indep (int): Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
+            num_shared (int): Number of shared fully-connected layers cross all steps. 
+            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
+            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+            mask_type (str): Mask type in `AttentiveTransformer`. 
+
+        Returns:
+            None
+
         """
         super(TabNetEncoder, self).__init__()
         self.input_dims = input_dims
@@ -252,6 +314,20 @@ class TabNetEncoder(nn.Module):
             )
 
     def forward(self, x, is_explain=False):
+        """
+        Define forward computation.
+
+        Arguments:
+            x (Tensor): Input tensor.
+            is_explain (bool): If True, return interpretive infomation.
+
+        Returns:
+            outputs (list of Tensors): Decision representations of each steps.
+            m_loss (Tensor): The Mask loss.
+            m_explain (Tensor): Mask interpretive infomation.
+            masks (dict of Tensor): Attentive mask of each steps.
+
+        """
         m_loss = 0
         outputs = []
 
@@ -288,6 +364,17 @@ class TabNetEncoder(nn.Module):
         return outputs, m_loss
 
     def explain(self, x):
+        """
+        Compute interpretive infomation
+
+        Arguments:
+            x (Tensor): Input tensor.
+
+        Returns:
+            m_explain (Tensor): Mask interpretive infomation.
+            masks (dict of Tensor): Attentive mask of each steps.
+
+        """
         prior = torch.ones_like(x).to(x.device)
         m_explain = torch.zeros(x.shape).to(x.device)
         masks = dict()
@@ -316,8 +403,14 @@ class TabNetHead(nn.Module):
         super(TabNetHead, self).__init__()
         """
         Initialization of `TabNetHead` module.
-        :params: reprs_dims: Dimension of decision representation. (int)
-        :params: output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
+
+        Arguments:
+            reprs_dims (int): Dimension of decision representation. 
+            output_dims (list or int): Output dimensions, list of dims means apply multi-task. 
+
+        Returns:
+            None
+
         """
         self.reprs_dims = reprs_dims
         self.output_dims = output_dims 
@@ -390,9 +483,6 @@ class TabNetDecoder(nn.Module):
             self.dense_layers = nn.Linear(self.reprs_dims, self.input_dims, bias=False)
 
     def forward(self, x):
-        """
-        params: x: outputs form TabNetEncoder.
-        """
         outout = 0
 
         for step in range(self.num_steps):
@@ -402,16 +492,22 @@ class TabNetDecoder(nn.Module):
 
 class EmbeddingEncoder(nn.Module):
     """
-    Implementation of Embedding Encoder for simple data pre-processing of raw input features. 
+    Implementation of Embedding Encoder for simple data pre-processing. 
     """
     def __init__(self, input_dims, cate_indices, cate_dims, embed_dims):
         super(EmbeddingEncoder, self).__init__()
         """
         Initialization of `EmbeddingEncoder` module.
-        :params input_dims: Dimension of input raw features. (int)
-        :params cate_indices: Indices of categorical features. (list of int or int)
-        :params cate_dims: Number of categories in each categorical features. (list of int or int)
-        :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
+
+        Arguments:
+            input_dims (int): Dimension of input raw features. 
+            cate_indices (list of int or int): Indices of categorical features. 
+            cate_dims (list of int or int): Number of categories in each categorical features. 
+            embed_dims (list of int or int): Dimensions of representation of embedding layer. 
+        
+        Returns:
+            None
+
         """
         self._is_skip = False 
         
@@ -479,46 +575,11 @@ class EmbeddingEncoder(nn.Module):
 class InferenceModel(nn.Module):
     """
     Implementation of Inference Model which contain three sub-modules:
-    (1) `EmbeddingEncoder` for categorical features preprocessing.
-    (2) `TabNetEncoder` for feature extraction.
-    (3) `TabNetHead` for the specific tasks.  
+        (1) `EmbeddingEncoder` for categorical features preprocessing.
+        (2) `TabNetEncoder` for feature extraction.
+        (3) `TabNetHead` for the specific tasks.  
+
     """
-    # def __init__(
-    #     self, input_dims, output_dims, cate_indices, cate_dims, embed_dims, 
-    #     reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, num_indep=2, 
-    #     num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'
-    # ):
-    #     super(InferenceModel, self).__init__()
-    #     """
-    #     Initialization of `InferenceModel` module.
-    #     :params input_dims: Dimension of input raw features. (int)
-    #     :params output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
-    #     :params cate_indices: Indices of categorical features. (list of int or int)
-    #     :params cate_dims: Number of categories in each categorical features. (list of int or int)
-    #     :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
-    #     :params reprs_dims: Dimension of decision representaion. (int)
-    #     :params atten_dims: Dimension of attentive features. (int)
-    #     :params num_steps: Number of decision steps. (int)
-    #     :params gamma: Scaling factor for attention updates (float)
-    #     :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
-    #     :params num_shared: Number of shared fully-connected layers cross all steps. (int)
-    #     :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
-    #     :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
-    #     :params mask_type: Mask type in `AttentiveTransformer`. (str)
-    #     """
-    #     self.embedding_encoder = EmbeddingEncoder(
-    #         input_dims, cate_indices, cate_dims, embed_dims
-    #     )
-
-    #     self.tabnet_encoder = TabNetEncoder(
-    #         self.embedding_encoder.output_dims, reprs_dims, atten_dims, num_steps,
-    #         gamma, num_indep, num_shared, virtual_batch_size, momentum, mask_type
-    #     )
-
-    #     self.head = TabNetHead(
-    #         reprs_dims=reprs_dims, output_dims=output_dims
-    #     )
-
     def __init__(self, embedding_encoder, tabnet_encoder, tabnet_head):
         super(InferenceModel, self).__init__()
         self.embedding_encoder = embedding_encoder 
@@ -526,6 +587,20 @@ class InferenceModel(nn.Module):
         self.tabnet_head = tabnet_head
 
     def forward(self, x, is_explain=False):
+        """
+        Define forward computation.
+
+        Arguments:
+            x (Tensor): Input tensor.
+            is_explain (bool): If True, return interpretive infomation.
+
+        Returns:
+            outputs (Tensors): Outputs of the inference model.
+            m_loss (Tensor): The Mask loss.
+            m_explain (Tensor): Mask interpretive infomation.
+            masks (dict of Tensor): Attentive mask of each steps.
+
+        """
         x = self.embedding_encoder(x)
 
         if is_explain:
@@ -553,9 +628,9 @@ class PretrainModel(nn.Module):
     Implementation of the pre-train model for encoder model pre-training.
 
     The `PretrainModel` module contain threee sub-modules:
-    (1) `EmbeddingEncoder` for categorical features preprocessing.
-    (2) `TabNetEncoder` for feature extraction.
-    (3) `PretextTaskModel` for self-supervised learning. (subclass of `PretextTaskModel`)
+        (1) `EmbeddingEncoder` for categorical features preprocessing.
+        (2) `TabNetEncoder` for feature extraction.
+        (3) `PretextTaskModel` for self-supervised learning. (subclass of `PretextTaskModel`)
 
     `PretrainModel`-to-`InferenceModel` conversion is available by calling `convert_model` function.
     
@@ -568,21 +643,27 @@ class PretrainModel(nn.Module):
         super(PretrainModel, self).__init__()
         """
         Initialization of the `PretrainModel` module.
-        :params input_dims: Dimension of input raw features. (int)
-        :params output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
-        :params cate_indices: Indices of categorical features. (list of int or int)
-        :params cate_dims: Number of categories in each categorical features. (list of int or int)
-        :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
-        :params reprs_dims: Dimension of decision representaion. (int)
-        :params atten_dims: Dimension of attentive features. (int)
-        :params num_steps: Number of decision steps. (int)
-        :params gamma: Scaling factor for attention updates (float)
-        :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
-        :params num_shared: Number of shared fully-connected layers cross all steps. (int)
-        :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
-        :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
-        :params mask_type: Mask type in `AttentiveTransformer`. (str)
-        :params pretext_configs: Configurations of building a pretext task model. (dict or None)
+        
+        Arguments:
+            input_dims (int): Dimension of input raw features. 
+            output_dims (list or int): Output dimensions, list of dims means apply multi-task. 
+            cate_indices (list of int or int): Indices of categorical features. 
+            cate_dims (list of int or int): Number of categories in each categorical features. 
+            embed_dims (list of int or int): Dimensions of representation of embedding layer. 
+            reprs_dims (int): Dimension of decision representaion. 
+            atten_dims (int): Dimension of attentive features. 
+            num_steps (int): Number of decision steps. 
+            gamma (float): Scaling factor for attention updates 
+            num_indep (int): Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
+            num_shared (int): Number of shared fully-connected layers cross all steps. 
+            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
+            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+            mask_type (str): Mask type in `AttentiveTransformer`. 
+            pretext_configs (dict or None): Configurations of building a pretext task model. 
+
+        Returns:
+            None
+
         """
 
         self.embedding_encoder = EmbeddingEncoder(

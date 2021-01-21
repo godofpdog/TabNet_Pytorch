@@ -17,13 +17,15 @@ _SUPPORTED_LEVEL = {
 def init_logger(logger_dir, logger_name, level):
     """
     Logger initialization.
-    
+
     Arguments:
         logger_dir (str): Directory to save same type of logs.
         logger_name (str): Log filename.
         level (str): Logger level.
+
     Returns:
         logger
+        
     """
     mkdir(logger_dir)
 
