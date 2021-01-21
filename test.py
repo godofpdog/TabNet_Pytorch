@@ -1,7 +1,5 @@
 """ Test code for this repo. """
 
-import torch 
-
 
 class _Test:
     def __init__(self):
@@ -9,6 +7,7 @@ class _Test:
     
     @classmethod
     def test_gbn(cls):
+        import torch 
         from src.core.model import GhostBatchNorm
 
         x = torch.randn(256, 100)
@@ -47,6 +46,7 @@ class _Test:
 
     @classmethod
     def test_tab_head(cls):
+        import torch 
         from src.core.model import TabNetHead
 
         reprs_dims_ = 8
@@ -81,7 +81,7 @@ class _Test:
         input_dims = cate_X.shape[1]
         cate_indices = [13]
         cate_dims = [3]
-        embed_dims = 32
+        embed_dims = 1
 
         embedding_encoder = EmbeddingEncoder(
             input_dims, cate_indices, cate_dims, embed_dims
@@ -90,6 +90,50 @@ class _Test:
         embeds = embedding_encoder(torch.from_numpy(cate_X))
 
         print(embeds.size())
+
+    @classmethod
+    def test_inference_model(cls):
+        import torch 
+        import numpy as np
+        from sklearn.datasets import load_boston
+        from src.core.model import InferenceModel
+
+        X, _ = load_boston(return_X_y=True)
+        cates_feats = np.random.choice((0, 1, 2), size=X.shape[0])
+        cate_X = np.hstack((X, cates_feats.reshape(-1, 1)))
+
+        print('X : ', X.shape)
+        print('cates_feats : ', cates_feats.shape)
+        print('cate_X : ', cate_X.shape)
+
+        input_dims = cate_X.shape[1]
+        output_dims = [8, 32]
+        cate_indices = [13]
+        cate_dims = [3]
+        embed_dims = 1
+
+        infer_model = InferenceModel(
+            input_dims, output_dims, cate_indices, cate_dims, embed_dims
+        )
+
+        print(infer_model)
+
+        print('========== test forward ==========')
+        outputs, m_loss = infer_model(torch.from_numpy(cate_X))
+
+        for o in outputs:
+            print(o.size())
+
+        print(m_loss)
+
+        print('========== test explain ==========')
+        m_explain, masks = infer_model.explain(torch.from_numpy(cate_X))
+
+        print('m_explain : ', m_explain.size())
+        print('masks : ', masks)
+
+
+
 
 
     @classmethod
@@ -136,4 +180,4 @@ class _Test:
 
 
 if __name__ == '__main__':
-    _Test.test_tab_encoder()
+    _Test.test_inference_model()

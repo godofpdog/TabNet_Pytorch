@@ -57,24 +57,7 @@ class TabNetBase(abc.ABC):
         self.pin_memory = pin_memory
         self.device = device
 
-        # build network
-        self._build_encoder()
-        self._build_head()
-        self._decoder = None
-
-    def _build_encoder(self):
-        self._encoder = TabNetEncoder(
-            self.input_dims, self.reprs_dims, self.atten_dims, self.num_steps, self.gamma, 
-            self.num_indep, self.num_shared, self.virtual_batch_size, self.momentum, self.mask_type
-        )
-
-    def _build_decoder(self):
-        pass 
-
-    def _build_head(self):
-        self._head = TabNetHead(
-            self.reprs_dims, self.output_dims
-        )
+        self._model = None 
 
     def load_weights(self, path, model_type):
         pass 

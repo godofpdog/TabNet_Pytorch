@@ -167,7 +167,7 @@ class TabNetEncoder(nn.Module):
         num_indep=2, num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'):
         """ 
         Implementation of the TabNet Encoder.
-        :params input_dims: Dimension of input features. (int)
+        :params input_dims: Dimension of input features from `EmbeddingEncoder`. (int)
         :params reprs_dims: Dimension of decision representaion. (int)
         :params atten_dims: Dimension of attentive features. (int)
         :params num_steps: Number of decision steps. (int)
@@ -387,8 +387,6 @@ class TabNetDecoder(nn.Module):
 class EmbeddingEncoder(nn.Module):
     """
     Implementation of Embedding Encoder for simple data pre-processing of raw input features. 
-
-    Note: `Unseen class in inference phase` issue
     """
     def __init__(self, input_dims, cate_indices, cate_dims, embed_dims):
         super(EmbeddingEncoder, self).__init__()
@@ -398,7 +396,6 @@ class EmbeddingEncoder(nn.Module):
         :params cate_indices: Indices of categorical features. (list of int or int)
         :params cate_dims: Number of categories in each categorical features. (list of int or int)
         :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
-        :params unique_values_path:
         """
         self._is_skip = False 
         
@@ -421,8 +418,6 @@ class EmbeddingEncoder(nn.Module):
                 .format(len(cate_indices), len(embed_dims)))
         
         self.sorted_indices = np.argsort(cate_indices)
-
-        print(cate_indices)
         self.cate_indices = [cate_indices[i] for i in self.sorted_indices]
         self.cate_dims = [cate_dims[i] for i in self.sorted_indices]
         self.embed_dims = [embed_dims[i] for i in self.sorted_indices]
@@ -465,6 +460,66 @@ class EmbeddingEncoder(nn.Module):
         return torch.cat(outputs, dim=1)
             
 
-class ForwardModel(nn.Module):
-    def __init__(self):
-        super(ForwardModel, self).__init__()
+class InferenceModel(nn.Module):
+    """
+    Implementation of Inference Model which contain three sub-modules, 
+    (1) `EmbeddingEncoder` for categorical features preprocessing.
+    (2) `TabNetEncoder` for feature extraction.
+    (3) `TabNetHead` for the specific tasks.  
+    """
+    def __init__(
+        self, input_dims, output_dims, cate_indices, cate_dims, embed_dims, 
+        reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, num_indep=2, 
+        num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'):
+        super(InferenceModel, self).__init__()
+        """
+        Initialization of `InferenceModel` module.
+        :params input_dims: Dimension of input raw features. (int)
+        :params output_dims: Output dimensions, list of dims means apply multi-task. (list or int)
+        :params cate_indices: Indices of categorical features. (list of int or int)
+        :params cate_dims: Number of categories in each categorical features. (list of int or int)
+        :params embed_dims: Dimensions of representation of embedding layer. (list of int or int)
+        :params reprs_dims: Dimension of decision representaion. (int)
+        :params atten_dims: Dimension of attentive features. (int)
+        :params num_steps: Number of decision steps. (int)
+        :params gamma: Scaling factor for attention updates (float)
+        :params num_indep: Number of step-specified `GLUBlock` in each `FeatureTransformer`. (int)
+        :params num_shared: Number of shared fully-connected layers cross all steps. (int)
+        :params virtual_batch_size: Virtual batch size in `GhostBatchNorm` module. (int)
+        :params momentum: Momentum parameters in `GhostBatchNorm` module. (float)
+        :params mask_type: Mask type in `AttentiveTransformer`. (str)
+        """
+        self.embedding_encoder = EmbeddingEncoder(
+            input_dims, cate_indices, cate_dims, embed_dims
+        )
+
+        self.tabnet_encoder = TabNetEncoder(
+            self.embedding_encoder.output_dims, reprs_dims, atten_dims, num_steps,
+            gamma, num_indep, num_shared, virtual_batch_size, momentum, mask_type
+        )
+
+        self.head = TabNetHead(
+            reprs_dims=reprs_dims, output_dims=output_dims
+        )
+
+    def forward(self, x, is_explain=False):
+        x = self.embedding_encoder(x)
+
+        if is_explain:
+            d_reprs, m_loss, m_explain, masks = \
+                self.tabnet_encoder(x)
+        else:
+            d_reprs, m_loss = self.tabnet_encoder(x)
+
+        outputs = self.head(
+            torch.sum(torch.stack(d_reprs, dim=0), dim=0)
+        )
+
+        if is_explain:
+            return outputs, m_loss, m_explain, masks
+
+        return outputs, m_loss
+
+    def explain(self, x):
+        x = self.embedding_encoder(x)
+        return self.tabnet_encoder.explain(x)
