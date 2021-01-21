@@ -47,9 +47,14 @@ class _BaseBuilder(abc.ABC):
 def load_weights(model, path):
     """
     Load model weights.
-    :params model: Model architecture. (subclass of torch.nn.Module)
-    :params path: Weights path. (.pt file)
-    :return None 
+
+    Arguments:
+        model (subclass of torch.nn.Module): Model architecture. 
+        path (str): Weights path. 
+
+    Returns:
+        None
+         
     """
 
     if not issubclass(model.__class__, torch.nn.Module):
