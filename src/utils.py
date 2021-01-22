@@ -1,13 +1,23 @@
 """ Utilities for this repo. """
 
+import os
 import abc
 import copy
 import numpy as np 
 import pandas as pd 
+from collections import defaultdict
 from sklearn.preprocessing import LabelEncoder
 
 # TODO
 # handlers.py
+
+
+def mkdir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    return 
+    
 
 class _BasePreprocessor(abc.ABC):
     """
@@ -94,8 +104,13 @@ class CatePreprocessor(_BasePreprocessor):
     def check_infer_data(self, x):
         """
         Inference data verification.
-        :params x: input raw features
-        :return None
+        
+        Arguments:
+            x: input raw features
+
+        Returns:
+            None
+
         """
         # TODO return indices 
 
@@ -107,6 +122,109 @@ class CatePreprocessor(_BasePreprocessor):
         
         return None 
 
+
+class Meter:
+    """
+    Record training/evaluation history.
+    """
+    def __init__(self):
+        self._history = defaultdict(list)
+
+    def update(self, updates):
+        """
+        Update Meter.
+
+        Arguments:
+            updates (dict): Updates information. 
+                (key: variable name, val: values)
+
+        Returns:
+            self
+        """
+        if not isinstance(updates, dict):
+            raise TypeError(
+                'Argument `updates` must be a `dict` object, but got `{}`'\
+                    .format(type(updates))
+            )
+            
+        for key, val in updates.items():
+            
+            if not isinstance(val, (int, float, bool)):
+                raise TypeError(
+                    'Not supported val type, only support `int`, `float` and `bool`.'
+                )
+
+            self._history[key].append(val)
+
+        return self
+
+    def __getitem__(self, name):
+        """
+        Get recordings.
+
+        Arguments:
+            names (str or list of str): Variable names in `_history`.
+
+        Returns:
+            (list of scalers): recording valuse.
+
+        """
+        return self._history[name]
+
+    def get_statistics(self, names, stat_type='mean'):
+        """
+        Get statistics of recordings.
+
+        Arguments:
+            names (str or list of str): Variable names in `_history`.
+            stat_type (str): Statistics type.
+
+        Retuens:
+            stat (int, float): Statistics. 
+
+        """
+        # TODO ckeck inputs
+
+        _SUPPORTED_STATS = {
+            'mean': np.mean,
+            'median': np.median,
+            'std': np.std,
+            'max': np.max,
+            'min': np.min
+        }
+
+        if isinstance(names, int):
+            names = [names]
+
+        stat_func = _SUPPORTED_STATS.get(stat_type)
+        
+        if stat_func is None:
+            raise ValueError('Not supported `stat_type`.')
+
+        res = dict()
+
+        for name in names:
+            res[name] = stat_func(self._history[name])
+
+        return res
+
+
+
+if __name__ == "__main__":
+    meter = Meter()
+    
+    for i in range(10):
+        updates = {
+            'a': i,
+            'b': 1
+        }
+
+        meter.update(updates)
+    
+    print(meter['a'])
+    print(meter['b'])
+
+    print(meter.get_statistics('a', stat_type='mean'))
 
         
 
