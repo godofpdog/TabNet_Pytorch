@@ -108,7 +108,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
     def fit(
         self, feats, targets, batch_size=1024, max_epochs=2000, optimizer=None, optimizer_params=None, 
-        metrics=None, scheduler=None, valid_feats=None, valid_targets=None, valid_metrics=None
+        metrics=None, scheduler=None, valid_feats=None, valid_targets=None, valid_metrics=None, 
     ):
         """
         Fit TabNet model.
@@ -132,7 +132,10 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.scheduler = scheduler
         self.valid_metrics = valid_metrics
 
-        self._update_fit_params()
+        if self._model is None:
+            self._model = build_model(
+                model_type='inference_model', weights_path=
+            )
 
 
         train_loader, valid_loader = self._create_data_loaders(feats, targets, valid_feats, valid_targets)

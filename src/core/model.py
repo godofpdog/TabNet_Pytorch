@@ -557,7 +557,6 @@ class EmbeddingEncoder(nn.Module):
         for i, is_conti in enumerate(self.conti_indices):
 
             if is_conti:
-                
                 outputs.append(
                     x[:, i].float().view(-1, 1)
                 )
