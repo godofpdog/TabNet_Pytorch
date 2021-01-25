@@ -2,10 +2,12 @@
 
 import abc 
 import torch
+import numpy as np 
+from collections import defaultdict
 from sklearn.base import BaseEstimator
 from torch.optim.optimizer import Optimizer
 
-from .model import TabNetHead, TabNetEncoder, TabNetDecoder
+from .model import InferenceModel, PretrainModel
 from .data import create_data_loader
 from .model_builder import load_weights, build_model
 from .solver import train_epoch, eval_epoch
@@ -270,9 +272,41 @@ class TabNetBase(abc.ABC, BaseEstimator):
             if self.logger is not None:
                 self.logger.info('[TabNet] build model first.')
     
-    def predict(self, feats):
+    def predict(self, feats, **kwargs):
+        # TODO update params
+
+        self.set_params(**kwargs)
+
         if self._model is None:
             raise RuntimeError('Must to build model before call `predict`.')
+        
+        elif not isinstance(self._model, InferenceModel):
+            raise TypeError('Invalid model type, use `convert_to_inference_model` before call `predict`.')
 
-        data_loader = create_data_loader()
+        if len(feats) < self.batch_size:
+            self.batch_size = len(feats)
+
+        data_loader = create_data_loader(
+            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+        )
+
+        self._model.eval()
+        predictions = dict()
+
+        with torch.no_grad():
+
+            for i, data in enumerate(data_loader):
+                outputs, _ = self._model(data)
+                
+                for t in range(len(self.output_dims)):
+                    pred = outputs[t].cpu().numpy()
+
+                    if i == 0:
+                        predictions[t] = pred
+                    else:
+                        predictions[t] = np.vstack((predictions[t], pred))
+
+        return predictions
+
+
         
