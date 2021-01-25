@@ -1,5 +1,4 @@
 """ Implementation of base classes in this repo. """
-from typing import Callable
 
 import abc 
 import torch
@@ -12,6 +11,40 @@ from .model import InferenceModel, PretrainModel
 from .data import create_data_loader
 from .model_builder import load_weights, build_model
 from .solver import train_epoch, eval_epoch
+
+
+class PostProcessorBase(abc.ABC, torch.nn.Module):
+    """
+    Base class of post processor.
+    """
+    def __init__(self, num_tasks, is_cuda=False, **kwargs):
+        super(PostProcessorBase, self).__init__()
+        self._processors = []
+
+        if not isinstance(num_tasks, int):
+            raise TypeError(
+                'Argument `num_tasks` must be an `int` object, bot got `{}`.'\
+                    .format(type(num_tasks))
+            )
+        elif num_tasks < 1:
+            raise ValueError(
+                'Number of tasks must be greater than 1, but got {}'\
+                    .format(num_tasks)
+            )
+
+        self._build(num_tasks, **kwargs)
+
+        if is_cuda:
+            for processor in self._processors:
+                processor.cuda()
+
+    @abc.abstractmethod
+    def _build(self, **kwargs):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def forward(self, x, **kwargs):
+        raise NotImplementedError
 
 
 class CustomizedLoss(abc.ABC, torch.nn.Module):
@@ -39,7 +72,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
         Arguments:
             input_dims (int): Dimension of input features. 
-            output_dims (int or list): Dimension of output logits (list for muti-task). 
+            output_dims (int or list of int): Dimension of output logits (list for muti-task). 
             reprs_dims (int): Dimension of decision representation.  
             atten_dims (int): Dimension of attentive features. 
             num_steps (int): Number of decision steps. 
@@ -82,6 +115,13 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.is_cuda = is_cuda
         self.logger = logger
 
+        self._check_arguments()
+
+        if isinstance(self.output_dims, int):
+            self.num_tasks = 1
+        else:
+            self.num_tasks = len(self.output_dims)
+
         self._model_configs = {}
 
         model_configs = {
@@ -107,7 +147,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self._model = None 
         self._optimizer = None 
         self._criterion = None 
-        self._post_processor:Callable = None
+        self._post_processor = None
 
     @abc.abstractmethod
     def _create_criterion(self, **kwargs):
@@ -269,12 +309,9 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
         self.set_params(**kwargs)
 
-        if self._model is None:
-            raise RuntimeError('Must to build model before call `predict`.')
+        _check_eval_model(self._model)
+        _check_post_processor(self._post_processor)
         
-        elif not isinstance(self._model, InferenceModel):
-            raise TypeError('Invalid model type, use `convert_to_inference_model` before call `predict`.')
-
         if len(feats) < self.batch_size:
             self.batch_size = len(feats)
 
@@ -289,9 +326,10 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
             for i, data in enumerate(data_loader):
                 outputs, _ = self._model(data)
+                processed_outouts = self._post_processor(outputs)
                 
                 for t in range(len(self.output_dims)):
-                    pred = self._post_processor(outputs[t].cpu().numpy())
+                    pred = processed_outouts[t].cpu().numpy()
 
                     if i == 0:
                         predictions[t] = pred
@@ -299,6 +337,41 @@ class TabNetBase(abc.ABC, BaseEstimator):
                         predictions[t] = np.vstack((predictions[t], pred))
 
         return predictions
+
+    def _check_arguments(self):
+        pass 
+
+
+def _check_eval_model(model):
+    """
+    Eval model verification.
+    """
+    if model is None:
+        raise RuntimeError('Must to build model before call `predict`.')
+
+    elif not isinstance(model, InferenceModel):
+        raise TypeError(
+                'Invalid model type, use `convert_to_inference_model` before call `predict`.'
+        )
+
+    return None
+
+
+def _check_post_processor(post_processor):
+    """
+    Post processor verification.
+    """
+    if post_processor is None:
+        raise RuntimeError(
+            'Must to define the post processor to get the final prediction.'
+        )
+    else:
+        if not issubclass(post_processor.__class__, PostProcessorBase):
+            raise TypeError(
+                'Argument `post_processor` must be the subclass of `PostProcessorBase`.'
+            )
+
+    return None
 
 
         

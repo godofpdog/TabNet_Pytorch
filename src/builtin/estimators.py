@@ -2,8 +2,41 @@
 
 import torch
 
-from ..core.base import TabNetBase
+from ..core.base import TabNetBase, PostProcessorBase
 from ..core.criterion import create_criterion
+
+
+class IdentityPostProcessor(PostProcessorBase):
+    def __init__(self, num_tasks, is_cuda):
+        super(IdentityPostProcessor, self).__init__(num_tasks)
+
+    def _build(self, num_tasks):
+        for _ in range(num_tasks):
+            self._processors.append(
+                torch.nn.Identity()
+            )
+
+    def forward(self, x):
+        """
+        Define forward computation of `IdentityPostProcessor`.
+
+        Arguments:
+            x (list of Tensor):
+                Outputs from `TabNetHead`.
+        
+        Returns:
+            outputs (list of numpy.ndarray)
+
+        """
+        assert len(x) == len(self._processors)
+        res = []
+
+        for i, processor in enumerate(self._processors):
+            res.append(
+                processor(x[i])
+            )
+
+        return res
 
 
 class TabNetRegressor(TabNetBase):
@@ -46,9 +79,9 @@ class TabNetRegressor(TabNetBase):
             None
 
         """
-        self.task_weights = task_weights
+        self.task_weights = task_weights 
         self._criterion = self._create_criterion()
-        self._post_processor = torch.nn.Identity()
+        self._post_processor = IdentityPostProcessor(self.num_tasks, self.is_cuda)
 
     def _create_criterion(self):
         """

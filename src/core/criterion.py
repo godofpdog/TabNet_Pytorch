@@ -5,10 +5,22 @@ import torch
 import torch.nn as nn 
 from torch.nn.modules.loss import _Loss, _WeightedLoss
 
-from .base import CustomizedLoss
-from ..builtin.losses import BinaryCrossEntropyLoss, MutiClassCrossEntropyLoss
-
 # TODO test code, check len
+
+
+class CustomizedLoss(abc.ABC, nn.Module):
+    """
+    Base class for customized loss. 
+    """
+    def __init__(self):
+        super(CustomizedLoss, self).__init__()
+        
+    def forward(self, x):
+        return self._forward(x)
+
+    @abc.abstractmethod
+    def _forward(self, x, **kwargs):
+        raise NotImplementedError
 
 
 class Criterion(nn.Module):
@@ -89,7 +101,7 @@ _REG_TYPES = ('reg', 'regression')
 _CLS_TYPES = ('cls', 'classification')
 
 
-def create_criterion(task_types, logits_dims, weights, is_cuda=False):
+def create_criterion(task_types, logits_dims, weights, is_cuda):
     """
     Create default criterion.
 
@@ -102,8 +114,10 @@ def create_criterion(task_types, logits_dims, weights, is_cuda=False):
             Dimension of output logits from the model.
 
         weights (int or list of int):
+            Loss weights of multi-task training.
 
         is_cuda (bool):
+            Use GPUs or not 
 
     Returns:
         criterion (Criterion): 
@@ -157,19 +171,16 @@ def create_criterion(task_types, logits_dims, weights, is_cuda=False):
 
         elif task_types[i] in _CLS_TYPES and logits_dims[i] == 1:
             losses.append(
-                BinaryCrossEntropyLoss() # TODO check
+                nn.BCELoss() # TODO check
             )
         
         elif task_types[i] in _CLS_TYPES and logits_dims[i] >= 2:
             losses.append(
-                MutiClassCrossEntropyLoss()
+                nn.CrossEntropyLoss()
             )
         
         else:
             raise ValueError('Invalid combination of arguments.')
-
-        if is_cuda:
-            losses[i].cuda()
 
     return Criterion(losses, weights)
 
@@ -185,7 +196,7 @@ if __name__ == '__main__':
 
     x1 = torch.rand((32, 1))
     x2 = torch.rand((32, 1))
-    x3 = torch.rand((32, 3))
+    x3 = torch.rand((32, 3)) 
 
 
     y1 = torch.rand((32, 1))
