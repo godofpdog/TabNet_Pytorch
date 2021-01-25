@@ -1,4 +1,5 @@
 """ Implementation of base classes in this repo. """
+from typing import Callable
 
 import abc 
 import torch
@@ -19,12 +20,9 @@ class CustomizedLoss(abc.ABC, torch.nn.Module):
     """
     def __init__(self):
         super(CustomizedLoss, self).__init__()
-        
-    def forward(self, x):
-        return self._forward(x)
-
+    
     @abc.abstractmethod
-    def _forward(self, x, **kwargs):
+    def forward(self, x, **kwargs):
         raise NotImplementedError
 
 
@@ -35,7 +33,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
     def __init__(
         self, input_dims, output_dims, reprs_dims=8, atten_dims=8, num_steps=3, num_indep=2, num_shared=2, gamma=1.3, 
         cate_indices=None, cate_dims=None, cate_embed_dims=1, batch_size=1024, virtual_batch_size=128, momentum=0.03,
-        mask_type='sparsemax', is_shuffle=True, num_workers=4, pin_memory=True, device=None, logger=None):
+        mask_type='sparsemax', is_shuffle=True, num_workers=4, pin_memory=True, is_cuda=False, logger=None):
         """
         Initialization of `TabNetBase`.
 
@@ -57,7 +55,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
             is_shuffle (bool): Flag of shuffle on epoch end or not. 
             num_workers (int): Number of thread for data loader. 
             pin_memory:
-            device (str or list of int): Usage decvice. 
+            is_cuda (bool): Use GPU or not.
             logger (logging.Logger): System logger object.
 
         """
@@ -81,7 +79,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.is_shuffle = is_shuffle
         self.num_workers = num_workers
         self.pin_memory = pin_memory
-        self.device = device
+        self.is_cuda = is_cuda
         self.logger = logger
 
         self._model_configs = {}
@@ -103,12 +101,13 @@ class TabNetBase(abc.ABC, BaseEstimator):
             'mask_type': self.mask_type
         }
 
-        self._set_model_configs(**model_configs)
+        self.model_confgs_.update(**model_configs)
         
         # sub modules
         self._model = None 
         self._optimizer = None 
         self._criterion = None 
+        self._post_processor:Callable = None
 
     @abc.abstractmethod
     def _create_criterion(self, **kwargs):
@@ -117,13 +116,6 @@ class TabNetBase(abc.ABC, BaseEstimator):
     @property
     def model_confgs_(self):
         return self._model_configs
-    
-    def set_model_configs(self, **kwargs):
-        self._set_model_configs(**kwargs)
-        return self
-
-    def _set_model_configs(self, **kwargs):
-        self._model_configs.update(**kwargs)
 
     def _init_optimizer(self, optimizer, optimizer_params):
         if self._model is None:
@@ -139,7 +131,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
             filter(lambda p: p.requires_grad, self._model.parameters()), **optimizer_params
         )
 
-    def load_weights(self, path, model_type='inference_model', is_cuda=False):
+    def load_weights(self, path, model_type='inference_model'):
         """
         Load model weights. 
         Build model architecture if `self._model` is None. 
@@ -150,7 +142,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         
         if self._model is None:
             self._model = build_model(
-                model_type=model_type, weights_path=path, is_cuda=is_cuda, **self._model_configs
+                model_type=model_type, weights_path=path, is_cuda=self.is_cuda, **self._model_configs
             )
 
         try:
@@ -299,7 +291,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
                 outputs, _ = self._model(data)
                 
                 for t in range(len(self.output_dims)):
-                    pred = outputs[t].cpu().numpy()
+                    pred = self._post_processor(outputs[t].cpu().numpy())
 
                     if i == 0:
                         predictions[t] = pred

@@ -18,9 +18,9 @@ class RegressionLoss:
 
 
 class BinaryCrossEntropyLoss(CustomizedLoss):
-    def __init__(self, device):
+    def __init__(self):
         super(BinaryCrossEntropyLoss, self).__init__()
-        self._loss_fn = torch.nn.BCELoss().to(device)
+        self._loss_fn = torch.nn.BCELoss()
     
     def forward(self, predictions, targets):
         targets = targets.to(predictions.device, dtype=torch.int64)
@@ -29,9 +29,9 @@ class BinaryCrossEntropyLoss(CustomizedLoss):
 
 
 class MutiClassCrossEntropyLoss(CustomizedLoss):
-    def __init__(self, device):
+    def __init__(self):
         super(MutiClassCrossEntropyLoss, self).__init__()
-        self._loss_fn = torch.nn.CrossEntropyLoss().to(device)
+        self._loss_fn = torch.nn.CrossEntropyLoss()
 
     def forward(self, predictions, targets):
         targets = targets.to(predictions.device, dtype=torch.int64)

@@ -5,22 +5,10 @@ import torch
 import torch.nn as nn 
 from torch.nn.modules.loss import _Loss, _WeightedLoss
 
+from .base import CustomizedLoss
+from ..builtin.losses import BinaryCrossEntropyLoss, MutiClassCrossEntropyLoss
+
 # TODO test code, check len
-
-
-class CustomizedLoss(abc.ABC, nn.Module):
-    """
-    Base class for customized loss. 
-    """
-    def __init__(self):
-        super(CustomizedLoss, self).__init__()
-        
-    def forward(self, x):
-        return self._forward(x)
-
-    @abc.abstractmethod
-    def _forward(self, x, **kwargs):
-        raise NotImplementedError
 
 
 class Criterion(nn.Module):
@@ -101,7 +89,7 @@ _REG_TYPES = ('reg', 'regression')
 _CLS_TYPES = ('cls', 'classification')
 
 
-def create_criterion(task_types, logits_dims, weights):
+def create_criterion(task_types, logits_dims, weights, is_cuda=False):
     """
     Create default criterion.
 
@@ -114,6 +102,8 @@ def create_criterion(task_types, logits_dims, weights):
             Dimension of output logits from the model.
 
         weights (int or list of int):
+
+        is_cuda (bool):
 
     Returns:
         criterion (Criterion): 
@@ -167,16 +157,19 @@ def create_criterion(task_types, logits_dims, weights):
 
         elif task_types[i] in _CLS_TYPES and logits_dims[i] == 1:
             losses.append(
-                nn.BCELoss() # TODO check
+                BinaryCrossEntropyLoss() # TODO check
             )
         
         elif task_types[i] in _CLS_TYPES and logits_dims[i] >= 2:
             losses.append(
-                nn.CrossEntropyLoss()
+                MutiClassCrossEntropyLoss()
             )
         
         else:
             raise ValueError('Invalid combination of arguments.')
+
+        if is_cuda:
+            losses[i].cuda()
 
     return Criterion(losses, weights)
 
