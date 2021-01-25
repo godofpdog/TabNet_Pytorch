@@ -270,3 +270,9 @@ class TabNetBase(abc.ABC, BaseEstimator):
             if self.logger is not None:
                 self.logger.info('[TabNet] build model first.')
     
+    def predict(self, feats):
+        if self._model is None:
+            raise RuntimeError('Must to build model before call `predict`.')
+
+        data_loader = create_data_loader()
+        

@@ -12,25 +12,27 @@ def _check_data(feats, targets):
 
     if not isinstance(feats, (np.ndarray, pd.DataFrame, pd.Series)):
         raise TypeError('Type of input data `feats` must be `np.ndarray` or `pd.DataFrame`.') 
-
-    if not isinstance(targets, (np.ndarray, pd.DataFrame, pd.Series)):
-        raise TypeError('Type of input data `targets` must be `np.ndarray` or `pd.DataFrame` or `pd.Series`.')
     
-    if len(feats) != len(targets):
-        raise ValueError('Sample size of input data `feats` must be equal to `targets`.')
+    if targets is not None:
 
-    if isinstance(targets, np.ndarray):
-        if np.isnan(targets).any():
-            raise ValueError('Missing values in targets.')
-    else:
-        if targets.isnull().sum().sum() > 0:
-            raise ValueError('Missing values in targets.')
+        if not isinstance(targets, (np.ndarray, pd.DataFrame, pd.Series)):
+            raise TypeError('Type of input data `targets` must be `np.ndarray` or `pd.DataFrame` or `pd.Series`.')
+        
+        if len(feats) != len(targets):
+            raise ValueError('Sample size of input data `feats` must be equal to `targets`.')
+
+        if isinstance(targets, np.ndarray):
+            if np.isnan(targets).any():
+                raise ValueError('Missing values in targets.')
+        else:
+            if targets.isnull().sum().sum() > 0:
+                raise ValueError('Missing values in targets.')
 
     return
 
 
 class TabularDataset(Dataset):
-    def __init__(self, feats, targets):
+    def __init__(self, feats, targets=None):
         _check_data(feats, targets)
         
         if isinstance(feats, (pd.DataFrame, pd.Series)):
@@ -40,10 +42,17 @@ class TabularDataset(Dataset):
             targets = targets.values
 
         self._feats = feats.astype(np.float32)
-        self._targets = targets.astype(np.float32)
+
+        if targets is not None:
+            self._targets = targets.astype(np.float32)
+        else:
+            self._targets = None
         
     def __getitem__(self, i):
-        return self._feats[i, ...], self._targets[i, ...]
+        if self._targets is not None:
+            return self._feats[i, ...], self._targets[i, ...]
+        else:
+            return self._feats[i, ...]
         
     def __len__(self):
         return len(self._feats)
