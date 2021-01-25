@@ -70,7 +70,7 @@ class ClassificationPostProcessor(PostProcessorBase):
 
     def _build(self, num_tasks, num_classes):
         for classes in num_classes:
-            
+
             if classes == 1:
                 processor = torch.nn.Sigmoid()
             else:
@@ -101,15 +101,21 @@ class ClassificationPostProcessor(PostProcessorBase):
         probs = []
 
         for i, processor in enumerate(self._processors):
+            print(x[i])
+            print('===============')
             outputs = processor(x[i])
 
-            labels.append(
-                outputs.argmax(dim=-1)
-            )
+            if isinstance(processor, torch.nn.Sigmoid):
+                print(outputs)
+                label = (outputs > 0.5) * 1 
+            else:
+                label = outputs.argmax(dim=-1)
+
+            labels.append(label)
 
             if is_return_proba:
                 probs.append(
-                    processor(outputs)
+                    outputs
                 )
 
         if is_return_proba:
@@ -234,3 +240,36 @@ class TabNetClassifier(TabNetBase):
         return create_criterion(
             task_types='classification', logits_dims=self.output_dims, weights=self.task_weights, is_cuda=self.is_cuda
         )
+
+    def predict_proba(self, feats, is_return_max=False):
+        self._check_eval_model(self._model)
+        self._check_post_processor(self._post_processor)
+        
+        if len(feats) < self.batch_size:
+            self.batch_size = len(feats)
+
+        data_loader = self._create_data_loader(
+            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+        )
+
+        self._model.eval()
+        predictions = dict()
+
+        with torch.no_grad():
+
+            for i, data in enumerate(data_loader):
+                outputs, _ = self._model(data)
+                _, probs = self._post_processor(outputs, is_return_proba=True)
+                
+                for t in range(len(self.output_dims)):
+                    pred = probs[t].cpu().numpy().reshape(-1, self.output_dims[t])
+
+                    if i == 0:
+                        predictions[t] = pred
+                    else:
+                        predictions[t] = np.vstack((predictions[t], pred))
+
+                    print('========')
+                    print(predictions[t].shape)
+
+        return predictions

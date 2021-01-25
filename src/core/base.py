@@ -307,15 +307,13 @@ class TabNetBase(abc.ABC, BaseEstimator):
     def predict(self, feats, **kwargs):
         # TODO update params
 
-        self.set_params(**kwargs)
-
-        _check_eval_model(self._model)
-        _check_post_processor(self._post_processor)
+        self._check_eval_model(self._model)
+        self._check_post_processor(self._post_processor)
         
         if len(feats) < self.batch_size:
             self.batch_size = len(feats)
 
-        data_loader = create_data_loader(
+        data_loader = self._create_data_loader(
             feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
         )
 
@@ -341,37 +339,43 @@ class TabNetBase(abc.ABC, BaseEstimator):
     def _check_arguments(self):
         pass 
 
-
-def _check_eval_model(model):
-    """
-    Eval model verification.
-    """
-    if model is None:
-        raise RuntimeError('Must to build model before call `predict`.')
-
-    elif not isinstance(model, InferenceModel):
-        raise TypeError(
-                'Invalid model type, use `convert_to_inference_model` before call `predict`.'
+    @classmethod
+    def _create_data_loader(cls, feats, targets, batch_size, is_shuffle, num_workers, pin_memory):
+        return create_data_loader(
+            feats, targets, batch_size, is_shuffle, num_workers, pin_memory
         )
 
-    return None
+    @classmethod
+    def _check_eval_model(cls, model):
+        """
+        Eval model verification.
+        """
+        if model is None:
+            raise RuntimeError('Must to build model before call `predict`.')
 
-
-def _check_post_processor(post_processor):
-    """
-    Post processor verification.
-    """
-    if post_processor is None:
-        raise RuntimeError(
-            'Must to define the post processor to get the final prediction.'
-        )
-    else:
-        if not issubclass(post_processor.__class__, PostProcessorBase):
+        elif not isinstance(model, InferenceModel):
             raise TypeError(
-                'Argument `post_processor` must be the subclass of `PostProcessorBase`.'
+                    'Invalid model type, use `convert_to_inference_model` before call `predict`.'
             )
 
-    return None
+        return None
+
+    @classmethod
+    def _check_post_processor(cla, post_processor):
+        """
+        Post processor verification.
+        """
+        if post_processor is None:
+            raise RuntimeError(
+                'Must to define the post processor to get the final prediction.'
+            )
+        else:
+            if not issubclass(post_processor.__class__, PostProcessorBase):
+                raise TypeError(
+                    'Argument `post_processor` must be the subclass of `PostProcessorBase`.'
+                )
+
+        return None
 
 
         
