@@ -25,16 +25,16 @@ class PostProcessorBase(abc.ABC, torch.nn.Module):
             raise TypeError(
                 'Argument `num_tasks` must be an `int` object, bot got `{}`.'\
                     .format(type(num_tasks))
-            )
+                )
         elif num_tasks < 1:
             raise ValueError(
                 'Number of tasks must be greater than 1, but got {}'\
                     .format(num_tasks)
-            )
+                )
 
         self._build(num_tasks, **kwargs)
 
-        if is_cuda:
+        if is_cuda and len(self._processors) > 0:
             for processor in self._processors:
                 processor.cuda()
 

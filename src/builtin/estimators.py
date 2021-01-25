@@ -7,14 +7,21 @@ from ..core.criterion import create_criterion
 
 
 class IdentityPostProcessor(PostProcessorBase):
+    """
+    Implementation of `IdentityPostProcessor`, 
+        deafult post processor for regression task.
+    """
     def __init__(self, num_tasks, is_cuda):
-        super(IdentityPostProcessor, self).__init__(num_tasks)
+        super(IdentityPostProcessor, self).__init__(
+            num_tasks=num_tasks, is_cuda=is_cuda
+        )
 
     def _build(self, num_tasks):
         for _ in range(num_tasks):
             self._processors.append(
                 torch.nn.Identity()
             )
+        return None 
 
     def forward(self, x):
         """
@@ -25,19 +32,91 @@ class IdentityPostProcessor(PostProcessorBase):
                 Outputs from `TabNetHead`.
         
         Returns:
-            outputs (list of numpy.ndarray)
+            outputs (list of Tensor)
 
         """
         assert len(x) == len(self._processors)
-        res = []
+        outputs = []
 
         for i, processor in enumerate(self._processors):
-            res.append(
+            outputs.append(
                 processor(x[i])
             )
 
-        return res
+        return outputs
 
+
+class ClassificationPostProcessor(PostProcessorBase):
+    """
+    Implementation of `ClassificationPostProcessor`, 
+        deafult post processor for classification task.
+    """
+    def __init__(self, num_classes, is_cuda):
+        if not isinstance(num_classes, (int, list)):
+            raise TypeError(
+                    'Argument `num_classes` must be a `int` or `list of int` object, but got `{}`'\
+                        .format(type(num_classes))
+                    )
+        
+        if isinstance(num_classes, int):
+            num_classes = [num_classes]
+
+        if not all(isinstance(x, int) for x in num_classes):
+            raise TypeError('Argument `num_classes` must be a `int` or `list of int` object')
+        
+        super(ClassificationPostProcessor, self).__init__(
+            num_tasks=len(num_classes), is_cuda=is_cuda, num_classes=num_classes
+        )
+
+    def _build(self, num_tasks, num_classes):
+        for classes in num_classes:
+            
+            if classes == 1:
+                processor = torch.nn.Sigmoid()
+            else:
+                processor = torch.nn.Softmax()
+
+            self._processors.append(processor)
+
+        return None
+
+    def forward(self, x, is_return_proba=False):
+        """
+        Define forward computation of `ClassificationPostProcessor`.
+
+        Arguments:
+            x (list of Tensor):
+                Outputs from `TabNetHead`.
+
+            is_return_proba (bool):
+                If True, return both labels and the probabilities of all classes.
+        
+        Returns:
+            labels (list of Tensor)
+            probs (list of Tensor)
+
+        """
+        assert len(x) == len(self._processors)
+        labels = []
+        probs = []
+
+        for i, processor in enumerate(self._processors):
+            outputs = processor(x[i])
+
+            labels.append(
+                outputs.argmax(dim=-1)
+            )
+
+            if is_return_proba:
+                probs.append(
+                    processor(outputs)
+                )
+
+        if is_return_proba:
+            return labels, probs
+        else:
+            return labels
+        
 
 class TabNetRegressor(TabNetBase):
     def __init__(
@@ -140,6 +219,7 @@ class TabNetClassifier(TabNetBase):
         """
         self.task_weights = task_weights
         self._criterion = self._create_criterion()
+        self._post_processor = ClassificationPostProcessor(self.output_dims, self.is_cuda)
 
     def _create_criterion(self):
         """
