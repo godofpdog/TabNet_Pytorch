@@ -56,9 +56,14 @@ class CatePreprocessor(_BasePreprocessor):
     def fit(self, input_features, cate_indices):
         """
         Fit CatePreprocessor.
-        :params input_features: Input raw features. (np.ndarray, pd.DataFrame)
-        :params cate_indices: Indices of categorical features. (int or list of int)
-        :return self
+
+        Arguments:
+            input_features (np.ndarray, pd.DataFrame): Input raw features. 
+            cate_indices (int or list of int): Indices of categorical features. 
+
+        Returns:
+            self
+
         """
         self._check_data(input_features)
 

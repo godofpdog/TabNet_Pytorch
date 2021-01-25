@@ -510,6 +510,15 @@ class EmbeddingEncoder(nn.Module):
 
         """
         self._is_skip = False 
+
+        if cate_indices is None:
+            cate_indices = []
+
+        if cate_dims is None:
+            cate_dims = []
+
+        if embed_dims is None:
+            embed_dims = 1
         
         if isinstance(cate_indices, int):
             cate_indices = [cate_indices]

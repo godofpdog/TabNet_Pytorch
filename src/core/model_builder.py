@@ -150,12 +150,13 @@ class _InferenceModelBuilder(_BaseBuilder):
         super(_InferenceModelBuilder, self).__init__(weights_path) 
 
     def _build(
-        self, input_dims, output_dims, cate_indices, cate_dims, embed_dims=1,
+        self, input_dims, output_dims, cate_indices, cate_dims, cate_embed_dims=1,
         reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, num_indep=2, 
         num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'
     ):
+
         embedding_encoder = _EmbeddingEmcoderBuilder().build(
-            input_dims=input_dims, cate_indices=cate_indices, cate_dims=cate_dims, embed_dims=embed_dims
+            input_dims=input_dims, cate_indices=cate_indices, cate_dims=cate_dims, embed_dims=cate_embed_dims
         )
 
         tabnet_encoder = _TabNetEncoderBuilder().build(
@@ -179,6 +180,8 @@ class _PretrainModelBuilder(_BaseBuilder):
 
 
 def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
+    # TODO support `pretrain_model`
+
     _SUPPORTED_BUILDERS = {
         'embedding_encoder': _EmbeddingEmcoderBuilder,
         'tabnet_encoder': _TabNetEncoderBuilder,
@@ -192,4 +195,3 @@ def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
         return builder(weights_path).build(is_cuda, **kwargs)
     else:
         raise ValueError('Not supported model type.')
-
