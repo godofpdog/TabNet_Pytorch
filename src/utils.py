@@ -194,10 +194,10 @@ class Meter:
             
         for key, val in updates.items():
             
-            if not isinstance(val, (int, float, bool)):
-                raise TypeError(
-                    'Not supported val type, only support `int`, `float` and `bool`.'
-                )
+            # if not isinstance(val, (int, float, bool)):
+            #     raise TypeError(
+            #         'Not supported val type, only support `int`, `float` and `bool`.'
+            #     )
 
             self._history[key].append(val)
 

@@ -247,7 +247,7 @@ class TabNetClassifier(TabNetBase):
             self.batch_size = len(feats)
 
         data_loader = self._create_data_loader(
-            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory
         )
 
         self._model.eval()

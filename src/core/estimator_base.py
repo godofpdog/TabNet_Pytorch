@@ -110,6 +110,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.pin_memory = pin_memory
         self.is_cuda = is_cuda
         self.logger = logger
+        self.device = 'cuda' if self.is_cuda else 'cpu'
 
         self._check_arguments()
 
@@ -173,8 +174,6 @@ class TabNetBase(abc.ABC, BaseEstimator):
             optimizer_params = {
                 'lr': 1e-3
             }
-
-        print(optimizer.__class__)
         
         if not issubclass(optimizer, Optimizer):
             raise TypeError('Invalid optimizer.')  # TODO support `str` as config 
@@ -224,6 +223,21 @@ class TabNetBase(abc.ABC, BaseEstimator):
                 self.logger.debug(e)
         
         return self
+
+    def seve_weights(self, path):
+        try:
+            torch.save(self._model.state_dict(), path)
+            self._show_message(
+                '[TabNet] Sucessfully save weights to {}.'.format(path),
+                logger=self.logger, level='INFO'
+            )
+        except Exception as e:
+            self._show_message(
+                '[TabNet] Failed to save weights. \n {}'.format(e),
+                logger=self.logger, level='WARNING'
+            )
+
+        return None 
      
     def fit(
         self, feats, targets, batch_size=1024, max_epochs=2000, optimizer=None, optimizer_params=None, 
@@ -297,8 +311,8 @@ class TabNetBase(abc.ABC, BaseEstimator):
             )
 
             train_meter = train_epoch(
-                self._model, train_loader, epoch, self._post_processor,
-                self._criterion, self._optimizer, self._metrics, self.logger
+                self._model, train_loader, epoch, self._post_processor, self._criterion, 
+                self._optimizer, self._metrics, self.logger, self.device
             )
 
             self._update_meters(train_meter, 'train')
@@ -314,7 +328,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         )
 
         self._show_message(
-            '[TabNet] ******************** Summary of training info ********************',
+            '[TabNet] ******************** Summary Info ********************',
             logger=self.logger, level='INFO'
         )
 
@@ -343,7 +357,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
             self.batch_size = len(feats)
 
         data_loader = self._create_data_loader(
-            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory
         )
 
         self._model.eval()
@@ -352,7 +366,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         with torch.no_grad():
 
             for i, data in enumerate(data_loader):
-                outputs, _ = self._model(data)
+                outputs, _ = self._model(data.to(self.device))
                 processed_outouts = self._post_processor(outputs)
                 
                 for t in range(len(self.output_dims)):
@@ -367,6 +381,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
     def explain(self, feats, **kwargs):
         # TODO update params
+        # TODO for embedding encoding
 
         self._check_eval_model(self._model)
 
@@ -374,7 +389,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
             self.batch_size = len(feats)
 
         data_loader = self._create_data_loader(
-            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory
         )
 
         self._model.eval()
@@ -384,7 +399,9 @@ class TabNetBase(abc.ABC, BaseEstimator):
         with torch.no_grad():
 
             for i, data in enumerate(data_loader):
-                m_explain, masks = self._model.explain(data)
+                m_explain, masks = self._model.explain(data.to(self.device))
+
+                return m_explain, masks
 
                 print(m_explain.size())
                 print(masks)

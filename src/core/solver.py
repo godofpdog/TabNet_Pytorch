@@ -46,6 +46,7 @@ def train_epoch(
             Training information recorder.
 
     """
+
     if model.__class__ not in (InferenceModel, PretrainModel):
         raise TypeError(
             'Invalid model type, input argument `model` must be an `InferenceModel` or `PretrainModel` but got `{}`'\
