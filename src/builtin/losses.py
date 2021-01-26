@@ -1,7 +1,7 @@
 """ Implementations of builtin losses. """
 
 import torch
-from ..core.base import CustomizedLoss
+from ..core.criterion import CustomizedLoss
 
 
 # TODO hard label classfication loss as a base class

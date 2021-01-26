@@ -2,7 +2,7 @@
 
 import torch
 
-from ..core.base import TabNetBase, PostProcessorBase
+from ..core.estimator_base import TabNetBase, PostProcessorBase
 from ..core.criterion import create_criterion
 
 
@@ -101,12 +101,9 @@ class ClassificationPostProcessor(PostProcessorBase):
         probs = []
 
         for i, processor in enumerate(self._processors):
-            print(x[i])
-            print('===============')
             outputs = processor(x[i])
 
             if isinstance(processor, torch.nn.Sigmoid):
-                print(outputs)
                 label = (outputs > 0.5) * 1 
             else:
                 label = outputs.argmax(dim=-1)

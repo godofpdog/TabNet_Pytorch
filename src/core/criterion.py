@@ -12,6 +12,8 @@ class CustomizedLoss(abc.ABC, nn.Module):
     """
     Base class for customized loss. 
     """
+    _module_type = 'loss'
+
     def __init__(self):
         super(CustomizedLoss, self).__init__()
         
@@ -58,9 +60,6 @@ class Criterion(nn.Module):
         loss = 0
         
         for i, (loss_layer, weight) in enumerate(zip(self._loss_layers, self._weights)):
-            print('---')
-            print(x[i].size())
-            print(y[i].size())
             loss += torch.mul(loss_layer(x[i], y[i]), weight) 
 
         return loss      

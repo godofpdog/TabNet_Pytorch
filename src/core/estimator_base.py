@@ -1,4 +1,4 @@
-""" Implementation of base classes in this repo. """
+""" Implementation of base classes for the estimator. """
 
 import abc 
 import torch
@@ -17,6 +17,8 @@ class PostProcessorBase(abc.ABC, torch.nn.Module):
     """
     Base class of post processor.
     """
+    _module_type = 'post_processor'
+
     def __init__(self, num_tasks, is_cuda=False, **kwargs):
         super(PostProcessorBase, self).__init__()
         self._processors = []
@@ -47,22 +49,24 @@ class PostProcessorBase(abc.ABC, torch.nn.Module):
         raise NotImplementedError
 
 
-class CustomizedLoss(abc.ABC, torch.nn.Module):
-    """
-    Base class for customized loss. 
-    """
-    def __init__(self):
-        super(CustomizedLoss, self).__init__()
+# class CustomizedLoss(abc.ABC, torch.nn.Module):
+#     """
+#     Base class for customized loss. 
+#     """
+#     def __init__(self):
+#         super(CustomizedLoss, self).__init__()
     
-    @abc.abstractmethod
-    def forward(self, x, **kwargs):
-        raise NotImplementedError
+#     @abc.abstractmethod
+#     def forward(self, x, **kwargs):
+#         raise NotImplementedError
 
 
 class TabNetBase(abc.ABC, BaseEstimator):
     """
     Implementation of tabnet base class.
     """
+    _module_type = 'estimator'
+
     def __init__(
         self, input_dims, output_dims, reprs_dims=8, atten_dims=8, num_steps=3, num_indep=2, num_shared=2, gamma=1.3, 
         cate_indices=None, cate_dims=None, cate_embed_dims=1, batch_size=1024, virtual_batch_size=128, momentum=0.03,
@@ -246,11 +250,6 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.metrics = metrics
         self.scheduler = scheduler
         self.valid_metrics = valid_metrics
-
-        if self.logger is not None:
-            self.logger.debug('[TabNet] create criterion.')
-
-        self._criterion = self._create_criterion()
 
         if self.logger is not None:
             self.logger.debug('[TabNet] init optimizer.')
