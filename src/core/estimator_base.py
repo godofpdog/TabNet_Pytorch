@@ -6,11 +6,15 @@ import numpy as np
 from collections import defaultdict
 from sklearn.base import BaseEstimator
 from torch.optim.optimizer import Optimizer
+from torch.optim import Adam
 
 from .model import InferenceModel, PretrainModel
 from .data import create_data_loader
 from .model_builder import load_weights, build_model
 from .solver import train_epoch, eval_epoch
+from .metrics import MetricBase
+from ..builtin.metrics import create_metrics
+from ..utils import show_message, Meter
 
 
 class PostProcessorBase(abc.ABC, torch.nn.Module):
@@ -47,18 +51,6 @@ class PostProcessorBase(abc.ABC, torch.nn.Module):
     @abc.abstractmethod
     def forward(self, x, **kwargs):
         raise NotImplementedError
-
-
-# class CustomizedLoss(abc.ABC, torch.nn.Module):
-#     """
-#     Base class for customized loss. 
-#     """
-#     def __init__(self):
-#         super(CustomizedLoss, self).__init__()
-    
-#     @abc.abstractmethod
-#     def forward(self, x, **kwargs):
-#         raise NotImplementedError
 
 
 class TabNetBase(abc.ABC, BaseEstimator):
@@ -152,6 +144,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self._optimizer = None 
         self._criterion = None 
         self._post_processor = None
+        self._meters = {'train': Meter(), 'eval': Meter()}
 
     @abc.abstractmethod
     def _create_criterion(self, **kwargs):
@@ -164,8 +157,26 @@ class TabNetBase(abc.ABC, BaseEstimator):
     def _init_optimizer(self, optimizer, optimizer_params):
         if self._model is None:
             raise RuntimeError('Must build model before set optimizer.')
+
+        if optimizer is None:
+            self._show_message(
+                '[TabNet] use default optimizer',
+                logger=self.logger, level='WARNING'
+            )
+            optimizer = Adam
+
+        if optimizer_params is None:
+            self._show_message(
+                '[TabNet] use default optimizer params',
+                logger=self.logger, level='WARNING'
+            )
+            optimizer_params = {
+                'lr': 1e-3
+            }
+
+        print(optimizer.__class__)
         
-        if not issubclass(optimizer.__class__, Optimizer):
+        if not issubclass(optimizer, Optimizer):
             raise TypeError('Invalid optimizer.')  # TODO support `str` as config 
 
         if not isinstance(optimizer_params, dict):
@@ -175,10 +186,17 @@ class TabNetBase(abc.ABC, BaseEstimator):
             filter(lambda p: p.requires_grad, self._model.parameters()), **optimizer_params
         )
 
-    def load_weights(self, path, model_type='inference_model'):
+    def build(self, path, model_type='inference_model'):
         """
-        Load model weights. 
-        Build model architecture if `self._model` is None. 
+        Build network architecture. 
+
+        Arguments
+            path (str): Weights path.
+            model_type (str): Model type.
+
+        Returns:
+            self
+
         """
 
         if not model_type in ('inference_model', 'pretrain_model'):
@@ -207,20 +225,6 @@ class TabNetBase(abc.ABC, BaseEstimator):
         
         return self
      
-    def _create_data_loaders(self, feats, targets, valid_feats, valid_targets):
-        train_loader = create_data_loader(
-            feats, targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
-        )
-
-        if valid_feats is not None and valid_targets is not None:
-            valid_loader = create_data_loader(
-                valid_feats, valid_targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
-            )
-        else:
-            valid_loader = None
-
-        return train_loader, valid_loader
-
     def fit(
         self, feats, targets, batch_size=1024, max_epochs=2000, optimizer=None, optimizer_params=None, 
         metrics=None, scheduler=None, valid_feats=None, valid_targets=None, valid_metrics=None
@@ -251,42 +255,68 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.scheduler = scheduler
         self.valid_metrics = valid_metrics
 
-        if self.logger is not None:
-            self.logger.debug('[TabNet] init optimizer.')
+        self._show_message(
+            '[TabNet] set metrics.',
+            logger=self.logger, level='DEBUG'
+        )
+
+        self._metrics = self._set_metrics(self.metrics)
+
+        self._show_message(
+            '[TabNet] init optimizer.',
+            logger=self.logger, level='DEBUG'
+        )
 
         self._optimizer = self._init_optimizer(optimizer, optimizer_params)
 
-        if self.logger is not None:
-            self.logger.debug('[TabNet] create data loaders.')
-
-        train_loader, valid_loader = self._create_data_loaders(
-            feats, targets, valid_feats, valid_targets
+        self._show_message(
+            '[TabNet] create data loaders.',
+            logger=self.logger, level='DEBUG'
         )
 
-        if self.logger is not None:
-            self.logger.info('[TabNet] start training.')
+        train_loader = self._create_data_loader(
+            feats, targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+        )
+
+        if valid_feats is not None and valid_targets is not None:
+            valid_loader = self._create_data_loader(
+                valid_feats, valid_targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+            )
+        else:
+            valid_loader = None 
+
+        self._show_message(
+            '[TabNet] start training.',
+            logger=self.logger, level='INFO'
+        )
 
         for epoch in range(1, self.max_epochs + 1):
-            if self.logger is not None:
-                self.logger.info(
-                    '[TabNet] ==================== epoch : {} ===================='\
-                    .format(epoch)
-                )
+            self._show_message(
+                '[TabNet] ******************** epoch : {} ********************'.format(epoch),
+                logger=self.logger, level='INFO'
+            )
 
             train_meter = train_epoch(
-                self._model, train_loader, epoch, self._criterion, 
-                self._optimizer, self._metrics, self.logger
+                self._model, train_loader, epoch, self._post_processor,
+                self._criterion, self._optimizer, self._metrics, self.logger
             )
+
+            self._update_meters(train_meter, 'train')
 
             if valid_loader is not None:
                 valid_meter = eval_epoch()
+            else:
+                valid_meter = None
 
-        if self.logger is not None:
-            self.logger.info('[TabNet] training complete.')
+        self._show_message(
+            '[TabNet] training complete.', 
+            logger=self.logger, level='INFO'
+        )
 
-            self.logger.info(
-                '[TabNet] ==================== Summary of training info ===================='
-            )
+        self._show_message(
+            '[TabNet] ******************** Summary of training info ********************',
+            logger=self.logger, level='INFO'
+        )
 
     def pretrain(self):
         pass 
@@ -335,8 +365,84 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
         return predictions
 
+    def _update_meters(self, meter, meter_name='train'):
+        updates = {}
+
+        self._show_message(
+            '[TabNet] -------------------- {} info --------------------'.format(meter_name),
+            logger=self.logger, level='INFO'
+        )
+
+        for name in meter.names:
+            stat_type = 'sum' if name == 'time_cost' else 'mean'
+            stat = meter.get_statistics(name, stat_type)[name]
+
+            self._show_message(
+                '[TabNet] {} : {}'.format(name, stat),
+                logger=self.logger, level='INFO'
+            )
+
+            updates[name] = stat 
+
+        self._meters[meter_name].update(updates)
+
+        return None
+
+    @classmethod
+    def _show_message(cls, msg, logger=None, level='DEBUG'):
+        """
+        Show estimator message, print message if `logger` is None.
+
+        Arguments:
+            msg (str):
+                Estimator message.
+
+            logger (logging.Logger, or None):
+                A Python logger object.
+
+            level (str):
+                Logger level.
+
+        Returns:
+            None
+
+        """
+        show_message(msg, logger, level)
+        return 
+
     def _check_arguments(self):
         pass 
+
+    @classmethod
+    def _set_metrics(cls, metrics):
+
+        if metrics is None:
+            return None 
+
+        _metrics = []
+
+        if not isinstance(metrics, list):
+            if issubclass(metrics, MetricBase):
+                _metrics.append(metrics)
+                return _metrics
+
+            elif isinstance(metrics, str):
+                metrics = [metrics]
+            
+            else:
+                raise TypeError('Invalid input type : `{}`'.format(type(metrics)))
+
+        for metric in metrics:
+            if isinstance(metric, str):
+                _metrics.append(create_metrics(metric))
+            
+            elif issubclass(metric, MetricBase):
+                _metrics.append(metric)
+            
+            else:
+                raise TypeError('Invalid input type : `{}`'.format(type(metric)))
+
+        return _metrics
 
     @classmethod
     def _create_data_loader(cls, feats, targets, batch_size, is_shuffle, num_workers, pin_memory):

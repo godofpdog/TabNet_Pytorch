@@ -15,8 +15,44 @@ from sklearn.preprocessing import LabelEncoder
 def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
-
     return 
+
+
+def show_message(msg, logger=None, level='DEBUG'):
+        """
+        Show estimator message, print message if `logger` is None.
+
+        Arguments:
+            msg (str):
+                Estimator message.
+
+            logger (logging.Logger, or None):
+                A Python logger object.
+
+            level (str):
+                Logger level.
+
+        Returns:
+            None
+
+        """
+        if logger is not None:
+            if level == 'DEBUG':
+                logger.debug(msg)
+            elif level == 'INFO':
+                logger.info(msg)
+            elif level == 'WARNING':
+                logger.warning(msg)
+            elif level == 'ERROR':
+                logger.error(msg)
+            elif level == 'CRITICAL':
+                logger.critical(msg)
+            else:
+                raise ValueError('Invalid level.')
+        else:
+            print('[{}]'.format(level) + msg)
+        
+        return 
     
 
 class _BasePreprocessor(abc.ABC):
@@ -135,6 +171,10 @@ class Meter:
     def __init__(self):
         self._history = defaultdict(list)
 
+    @property
+    def names(self):
+        return [k for k in self._history.keys()]
+
     def update(self, updates):
         """
         Update Meter.
@@ -195,10 +235,11 @@ class Meter:
             'median': np.median,
             'std': np.std,
             'max': np.max,
-            'min': np.min
+            'min': np.min,
+            'sum': np.sum
         }
 
-        if isinstance(names, int):
+        if isinstance(names, str):
             names = [names]
 
         stat_func = _SUPPORTED_STATS.get(stat_type)

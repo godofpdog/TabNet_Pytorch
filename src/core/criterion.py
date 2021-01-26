@@ -47,20 +47,27 @@ class Criterion(nn.Module):
         """
         self._check_inputs(loss_layers, weights)
 
+    @property
+    def num_tasks(self):
+        return len(self._loss_layers)
+
     def forward(self, x, y):
         """
         Arguments:
             x (list of Tensor):
-                otuput tensors from `TabNetHead`
+                Otuput tensors from `TabNetHead`
             
-            y (list of Tensor):
-                ground truth of the task.
+            y (Tensor):
+                Ground truth of the task (shape = (batch_size, num_tasks))
 
         """
         loss = 0
         
         for i, (loss_layer, weight) in enumerate(zip(self._loss_layers, self._weights)):
-            loss += torch.mul(loss_layer(x[i], y[i]), weight) 
+            loss += torch.mul(
+                loss_layer(x[i], y[..., i].view(-1, 1)), 
+                weight
+            ) 
 
         return loss      
 
@@ -170,7 +177,7 @@ def create_criterion(task_types, logits_dims, weights, is_cuda):
 
         elif task_types[i] in _CLS_TYPES and logits_dims[i] == 1:
             losses.append(
-                nn.BCELoss() # TODO check
+                nn.BCEWithLogitsLoss()
             )
         
         elif task_types[i] in _CLS_TYPES and logits_dims[i] >= 2:

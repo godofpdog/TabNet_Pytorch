@@ -1,6 +1,7 @@
 """ Implementations of estimators. """
 
 import torch
+import numpy as np 
 
 from ..core.estimator_base import TabNetBase, PostProcessorBase
 from ..core.criterion import create_criterion
@@ -265,8 +266,5 @@ class TabNetClassifier(TabNetBase):
                         predictions[t] = pred
                     else:
                         predictions[t] = np.vstack((predictions[t], pred))
-
-                    print('========')
-                    print(predictions[t].shape)
 
         return predictions

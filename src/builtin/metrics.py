@@ -30,3 +30,24 @@ SUPPORTED_METRICS = {
     'acc': AccuracyMetric,
     'mse': MeanSquaredErrorMetric
 }
+
+
+def create_metrics(code):
+    """
+    Create metrics objects.
+
+    Arguments:
+        code (st):
+            Code of evaluation metric.
+
+    Return:
+        metric (subclass of `MetricBase`):
+            An evaluation metric object.
+
+    """
+    metric = SUPPORTED_METRICS.get(code)
+
+    if metric is not None:
+        return metric()
+    else:
+        raise ValueError('Not supported metric code.')
