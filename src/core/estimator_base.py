@@ -365,6 +365,42 @@ class TabNetBase(abc.ABC, BaseEstimator):
 
         return predictions
 
+    def explain(self, feats, **kwargs):
+        # TODO update params
+
+        self._check_eval_model(self._model)
+
+        if len(feats) < self.batch_size:
+            self.batch_size = len(feats)
+
+        data_loader = self._create_data_loader(
+            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+        )
+
+        self._model.eval()
+        
+        predictions = dict()
+
+        with torch.no_grad():
+
+            for i, data in enumerate(data_loader):
+                m_explain, masks = self._model.explain(data)
+
+                print(m_explain.size())
+                print(masks)
+        #         processed_outouts = self._post_processor(outputs)
+                
+        #         for t in range(len(self.output_dims)):
+        #             pred = processed_outouts[t].cpu().numpy()
+
+        #             if i == 0:
+        #                 predictions[t] = pred
+        #             else:
+        #                 predictions[t] = np.vstack((predictions[t], pred))
+
+        # return predictions
+
+
     def _update_meters(self, meter, meter_name='train'):
         updates = {}
 
@@ -456,11 +492,11 @@ class TabNetBase(abc.ABC, BaseEstimator):
         Eval model verification.
         """
         if model is None:
-            raise RuntimeError('Must to build model before call `predict`.')
+            raise RuntimeError('Must to build model first.')
 
         elif not isinstance(model, InferenceModel):
             raise TypeError(
-                    'Invalid model type, use `convert_to_inference_model` before call `predict`.'
+                    'Invalid model type, use `convert_to_inference_model`.'
             )
 
         return None
