@@ -7,7 +7,7 @@ from collections import defaultdict
 from sklearn.base import BaseEstimator
 from torch.optim.optimizer import Optimizer
 from torch.optim import Adam
-from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau, 
+from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 
 from .model import InferenceModel, PretrainModel
 from .data import create_data_loader
@@ -217,6 +217,8 @@ class TabNetBase(abc.ABC, BaseEstimator):
             List of scheduler objects.
 
         """
+        # TODO check inputs 
+
         if self._model is None:
             raise RuntimeError('Must build model before init optimizer.')
 
@@ -226,31 +228,11 @@ class TabNetBase(abc.ABC, BaseEstimator):
         if schedulers is None:
             return None 
 
-        if not isinstance(schedulers, list) and issubclass(schedulers, _LRScheduler):
+        if not isinstance(schedulers, list) :
             schedulers = [schedulers]
-        else:
-            raise TypeError(
-                'Invalid type of the argument `schedulers`, expect subclsss of `_LRScheduler` or list of them but got {}'\
-                    .format(type(schedulers))
-                )
 
         if not isinstance(scheduler_params, list) and isinstance(scheduler_params, dict):
             scheduler_params = [scheduler_params]
-        else:
-            raise TypeError(
-                'Invalid type of the argument `scheduler_params`, expect `dict` or list of dict but got {}'\
-                    .format(type(scheduler_params))
-                )
-
-        if not all(isinstance(obj, _LRScheduler) for obj in schedulers):
-            raise TypeError(
-                'All elements of list `schedulers` must be the subclass of `_LRScheduler`.'
-                )
-
-        if not all(isinstance(obj, dict) for obj in scheduler_params):
-            raise TypeError(
-                'All elements of list `scheduler_params` must be a `dict` object.'
-                )
 
         scheduler_objects = []
 
@@ -508,12 +490,16 @@ class TabNetBase(abc.ABC, BaseEstimator):
         # TODO  ReduceLROnPlateau wrapper to monitor other criterions
 
         for scheduler in self._schedulers:
-            
             if isinstance(scheduler, ReduceLROnPlateau):
-                
-                if self._meters.get('eval').get('')
-                scheduler.step(ev)
-
+                if len(self._meters['eval']) != 0:
+                    loss = self._meters['eval']['total_loss'][-1]
+                else:
+                    loss = self._meters['train']['total_loss'][-1]
+                scheduler.step(loss)
+            else:
+                scheduler.step()
+        
+        return None
 
     def _update_meters(self, meter, meter_name='train'):
         updates = {}
