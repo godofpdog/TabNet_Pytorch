@@ -7,6 +7,7 @@ from collections import defaultdict
 from sklearn.base import BaseEstimator
 from torch.optim.optimizer import Optimizer
 from torch.optim import Adam
+from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau, 
 
 from .model import InferenceModel, PretrainModel
 from .data import create_data_loader
@@ -143,6 +144,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         # sub modules
         self._model = None 
         self._optimizer = None 
+        self._schedulers = None
         self._criterion = None 
         self._post_processor = None
         self._meters = {'train': Meter(), 'eval': Meter()}
@@ -156,8 +158,22 @@ class TabNetBase(abc.ABC, BaseEstimator):
         return self._model_configs
 
     def _init_optimizer(self, optimizer, optimizer_params):
+        """
+        Initialization of optimizer,
+
+        Arguments:
+            optimizer (subclass of torch.optim.optimizer.Optimizer):
+                Pytorch optimizer. If None, use tne default optimizer `Adam` with learning rate = 1e-3.
+
+            optimizer_params (dict):
+                Parameters of the optimizer. If None, apply default setting.
+
+        Returns:
+            An optimizer object.
+
+        """
         if self._model is None:
-            raise RuntimeError('Must build model before set optimizer.')
+            raise RuntimeError('Must build model before init optimizer.')
 
         if optimizer is None:
             self._show_message(
@@ -184,6 +200,66 @@ class TabNetBase(abc.ABC, BaseEstimator):
         return optimizer(
             filter(lambda p: p.requires_grad, self._model.parameters()), **optimizer_params
         )
+
+    def _init_schedulers(self, schedulers, scheduler_params):
+        """
+        Initialization of learning rate schedulers.
+
+        Arguments:
+            schedulers (subclass of `torch.optim.lr_scheduler._LRScheduler` or list of them):
+                Pytorch learning rate schedulers. If multiple inputs, will call `step()` method 
+                sequentially in training phase. If None, train without scheduler.
+
+             scheduler_params (dict or list of dict):
+                Parameters of the schedulers.
+
+        Returns:
+            List of scheduler objects.
+
+        """
+        if self._model is None:
+            raise RuntimeError('Must build model before init optimizer.')
+
+        if self._optimizer is None:
+            raise RuntimeError('Must init optimizer berfore init schedulers.')
+        
+        if schedulers is None:
+            return None 
+
+        if not isinstance(schedulers, list) and issubclass(schedulers, _LRScheduler):
+            schedulers = [schedulers]
+        else:
+            raise TypeError(
+                'Invalid type of the argument `schedulers`, expect subclsss of `_LRScheduler` or list of them but got {}'\
+                    .format(type(schedulers))
+                )
+
+        if not isinstance(scheduler_params, list) and isinstance(scheduler_params, dict):
+            scheduler_params = [scheduler_params]
+        else:
+            raise TypeError(
+                'Invalid type of the argument `scheduler_params`, expect `dict` or list of dict but got {}'\
+                    .format(type(scheduler_params))
+                )
+
+        if not all(isinstance(obj, _LRScheduler) for obj in schedulers):
+            raise TypeError(
+                'All elements of list `schedulers` must be the subclass of `_LRScheduler`.'
+                )
+
+        if not all(isinstance(obj, dict) for obj in scheduler_params):
+            raise TypeError(
+                'All elements of list `scheduler_params` must be a `dict` object.'
+                )
+
+        scheduler_objects = []
+
+        for scheduler, params in zip(schedulers, scheduler_params):
+            scheduler_objects.append(
+                scheduler(self._optimizer, **params)
+            )
+        
+        return scheduler_objects
 
     def build(self, path, model_type='inference_model'):
         """
@@ -241,7 +317,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
      
     def fit(
         self, feats, targets, batch_size=1024, max_epochs=2000, optimizer=None, optimizer_params=None, 
-        metrics=None, scheduler=None, valid_feats=None, valid_targets=None, valid_metrics=None
+        metrics=None, schedulers=None, scheduler_params=None, valid_feats=None, valid_targets=None, valid_metrics=None
     ):
         """
         Fit TabNet model.
@@ -254,7 +330,8 @@ class TabNetBase(abc.ABC, BaseEstimator):
             optimizer (subclass of torch.optim.optimizer.Optimizer): Optimizer. 
             optimizer_params (dict): Parameters of optimizer. 
             metrics (str or function?): Evaluate metrics. 
-            scheduler (str or ??): Training scheduler. 
+            schedulers (): Training schedulers. 
+            scheduler_params
             valid_feats (np.ndarray or pd.DataFrame): Validation features. 
             valid_targets (np.ndarray or pd.DataFrame): Validation targets.
             valid_metrics (str or ??): Evaluation metrics for validation set. 
@@ -266,7 +343,7 @@ class TabNetBase(abc.ABC, BaseEstimator):
         self.batch_size = batch_size
         self.max_epochs = max_epochs
         self.metrics = metrics
-        self.scheduler = scheduler
+        self.schedulers = schedulers
         self.valid_metrics = valid_metrics
 
         self._show_message(
@@ -282,6 +359,13 @@ class TabNetBase(abc.ABC, BaseEstimator):
         )
 
         self._optimizer = self._init_optimizer(optimizer, optimizer_params)
+
+        self._show_message(
+            '[TabNet] init schedulers.',
+            logger=self.logger, level='DEBUG'
+        )
+
+        self._schedulers = self._init_schedulers(schedulers, scheduler_params)
 
         self._show_message(
             '[TabNet] create data loaders.',
@@ -321,6 +405,9 @@ class TabNetBase(abc.ABC, BaseEstimator):
                 valid_meter = eval_epoch()
             else:
                 valid_meter = None
+
+            if self._schedulers is not None:
+                self._schedulers_step()
 
         self._show_message(
             '[TabNet] training complete.', 
@@ -416,6 +503,16 @@ class TabNetBase(abc.ABC, BaseEstimator):
         #                 predictions[t] = np.vstack((predictions[t], pred))
 
         # return predictions
+
+    def _schedulers_step(self, ):
+        # TODO  ReduceLROnPlateau wrapper to monitor other criterions
+
+        for scheduler in self._schedulers:
+            
+            if isinstance(scheduler, ReduceLROnPlateau):
+                
+                if self._meters.get('eval').get('')
+                scheduler.step(ev)
 
 
     def _update_meters(self, meter, meter_name='train'):
