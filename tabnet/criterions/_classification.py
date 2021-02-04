@@ -11,8 +11,8 @@ class BinaryCrossEntropyLoss(Loss, ClassificationTaskMixin):
         self._loss_fn = torch.nn.BCEWithLogitsLoss()
     
     def score_func(self, preds, targets):
-        targets = targets.to(preds.device, dtype=torch.int64)
-
+        # targets = targets.to(preds.device, dtype=torch.int64)
+        targets = targets.to(preds.device)
         return self._loss_fn(preds, targets)
 
 
@@ -22,7 +22,7 @@ class MutiClassCrossEntropyLoss(Loss, ClassificationTaskMixin):
         self._loss_fn = torch.nn.CrossEntropyLoss()
 
     def score_func(self, preds, targets):
-        targets = targets.to(predictions.device, dtype=torch.int64)
+        targets = targets.to(preds.device, dtype=torch.int64)
 
         return self._loss_fn(preds, targets) 
         

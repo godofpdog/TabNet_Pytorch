@@ -1,5 +1,6 @@
 """ Implementatoins of TabNet model architectures. """
 
+import abc
 import torch
 import pickle
 import numpy as np
@@ -630,13 +631,31 @@ class InferenceModel(nn.Module):
         x = self.embedding_encoder(x)
         return self.tabnet_encoder.explain(x)
 
+class _BasePretextModel(nn.Module, abc.ABC):
+    """
+    Base Class of pretext task model.
+
+    """
+    def __init__(self, encode_dims):
+        pass 
+    
+    @abc.abstractmethod
+    def pre_process(self, x):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def post_process(self, x):
+        raise NotImplementedError
+
+
 
 class PretrainModel(nn.Module):
     """
     Implementation of the pre-train model for encoder model pre-training.
 
-    The `PretrainModel` module contain threee sub-modules:
+    The `PretrainModel` module contain two sub-modules:
         (1) `EmbeddingEncoder` for categorical features preprocessing.
+        (2) `BinaryMasker` for masking. xxxx
         (2) `TabNetEncoder` for feature extraction.
         (3) `PretextTaskModel` for self-supervised learning. (subclass of `PretextTaskModel`)
 
@@ -691,3 +710,6 @@ class PretrainModel(nn.Module):
         reconstruction = self.pretext_model(d_reprs)
 
         return reconstruction, m_loss
+
+        if self.masker is not None:
+            pass

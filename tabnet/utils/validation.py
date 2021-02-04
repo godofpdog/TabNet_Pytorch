@@ -22,9 +22,10 @@ def check_input_data(input_data):
     """
     if is_has_na(input_data):
         raise ValueError('Input data contain missing value.') 
-
-    if not is_finite(input_data):
-        raise ValueError('Input data contain infiite value.')
+    
+    # NOTE bugs...
+    # if not is_finite(input_data):
+    #     raise ValueError('Input data contain infinite value.')
 
     return None 
         

@@ -1,79 +1,115 @@
-""" Implementation of TabNetRegressor. """
+""" Implementation of TabNetClassifier. """
 
 import torch 
 import numpy as np 
 
 from ._base import BaseTabNet, BasePostProcessor
 from ..criterions import get_loss, create_criterion, Loss
-from ..utils.validation import is_reg_score
+from ..utils.validation import is_cls_score 
 
 
-class IdentityPostProcessor(BasePostProcessor):
+class ClassificationPostProcessor(BasePostProcessor):
     """
-    Implementation of `IdentityPostProcessor`
-    The deafult post processor for regression task.
+    Implementation of `ClassificationPostProcessor`
+    default post prcocessor for classification task.
     """
-    def __init__(self, num_tasks, is_cuda):
+    def __init__(self, output_dims, is_cuda):
         """
-        Initialization of `IdentityPostProcessor` object.
-
+        Initialization of `ClassificationPostProcessor` object.
+        
         Arguments:
-            num_task (int or list of int):
-                Number of the task (must > 0).
+            output_dims (int or list of int)
+                Dimension of output logits (list for muti-task).
 
         Returns:
-            None
+            None 
 
         """
-        super(IdentityPostProcessor, self).__init__(
-            num_tasks=num_tasks, is_cuda=is_cuda
+        if not isinstance(output_dims, (int, list)):
+            raise TypeError(
+                    'Argument `output_dims` must be a `int` or `list of int` object, but got `{}`'\
+                        .format(type(output_dims))
+                    )
+        
+        if isinstance(output_dims, int):
+            output_dims = [output_dims]
+
+        if not all(isinstance(x, int) for x in output_dims):
+            raise TypeError('Argument `output_dims` must be a `int` or `list of int` object')
+        
+        super(ClassificationPostProcessor, self).__init__(
+            num_tasks=len(output_dims), is_cuda=is_cuda, output_dims=output_dims
         )
 
-    def _build(self, num_tasks):
-        for _ in range(num_tasks):
-            self._processors.append(torch.nn.Identity())
-        return None 
+    def _build(self, num_tasks, output_dims):
+        for dims in output_dims:
 
-    def forward(self, x):
+            if dims == 1:
+                processor = torch.nn.Sigmoid()
+            else:
+                processor = torch.nn.Softmax()
+
+            self._processors.append(processor)
+
+        return None
+
+    def forward(self, x, is_return_proba=False):
         """
-        Define forward computation of `IdentityPostProcessor`.
+        Define forward computation of `ClassificationPostProcessor`.
 
         Arguments:
             x (list of Tensor):
                 Outputs from `TabNetHead`.
+
+            is_return_proba (bool):
+                If True, return both labels and the probabilities of all classes.
         
         Returns:
-            outputs (list of Tensor)
+            labels (list of Tensor)
+            probs (list of Tensor)
 
         """
         assert len(x) == len(self._processors)
-        outputs = []
+        labels = []
+        probs = []
 
         for i, processor in enumerate(self._processors):
-            outputs.append(
-                processor(x[i])
-            )
+            outputs = processor(x[i])
 
-        return outputs
+            if isinstance(processor, torch.nn.Sigmoid):
+                label = (outputs > 0.5) * 1 
+            else:
+                label = outputs.argmax(dim=-1)
+
+            labels.append(label)
+
+            if is_return_proba:
+                probs.append(
+                    outputs
+                )
+
+        if is_return_proba:
+            return labels, probs
+        else:
+            return labels
 
 
-class TabNetRegressor(BaseTabNet):
+class TabNetClassifier(BaseTabNet):
     """
-    Implementation of TabNetRegressor.
+    Implementation of TabNetClassifier.
     """
     def __init__(
         self, input_dims, output_dims, reprs_dims=8, atten_dims=8, num_steps=3, num_indep=2, num_shared=2, gamma=1.3,
         cate_indices=None, cate_dims=None, cate_embed_dims=1, batch_size=1024, virtual_batch_size=128, momentum=0.03,
-        mask_type='sparsemax', task_weights=1, criterions=None, is_shuffle=True, num_workers=4, pin_memory=True, is_cuda=False, logger=None):
+        mask_type='sparsemax', task_weights=1, criterions=None,  is_shuffle=True, num_workers=4, pin_memory=True, is_cuda=False, logger=None):
         
-        super(TabNetRegressor, self).__init__(
+        super(TabNetClassifier, self).__init__(
             input_dims, output_dims, reprs_dims, atten_dims, num_steps, num_indep, num_shared, gamma, 
             cate_indices, cate_dims, cate_embed_dims, batch_size, virtual_batch_size, momentum,
             mask_type, is_shuffle, num_workers, pin_memory, is_cuda, logger
         )
-
         """
-        Initialization of `TabNetRegressor`.
+        Initialization of TabNetClassifier.
 
         Arguments:
             input_dims (int):
@@ -144,39 +180,48 @@ class TabNetRegressor(BaseTabNet):
             None
 
         """
-        self.task_weights = task_weights 
+        self.task_weights = task_weights
         self.criterions = criterions
 
-        self.num_tasks = len(output_dims) if \
-            isinstance(output_dims, list) else 1
-
-        # build criterion
+        # build criterion   
         self._criterion = self._build_criterion()
 
         # build post processor
+        self.num_tasks = len(output_dims) if isinstance(output_dims, list) else 1
         self._build_post_processor()
 
     def _build_criterion(self):
         """
-        Create default criterions of regression task.
+        Create default criterions of classification task.
         """
         losses = []
 
         # defult setting 
         if self.criterions is None:
-            self.criterions = ['mse'] * self.num_tasks
+            criterions = []
 
-        if not isinstance(self.criterions, list):
-            criterions = [self.criterions]
-        else:
-            criterions = self.criterions
+            if isinstance(self.output_dims, int):
+                self.output_dims = [self.output_dims]
+
+            elif not isinstance(self.output_dims, list):
+                raise TypeError('Argument `self.output_dims` must be int or list of int.')
+
+            for dims in self.output_dims:
+
+                if dims < 1:
+                    raise ValueError('Invalid output dimenssionb (must > 0)')
+
+                if dims == 1:
+                    criterions.append('bce')
+                else:
+                    criterions.append('ce')
 
         for criterion in criterions:
 
             if isinstance(criterion, str):
                 loss = get_loss(criterion)
 
-            elif is_reg_score(criterion):
+            elif is_cls_score(criterion):
                 loss = criterion
 
             else:
@@ -187,4 +232,6 @@ class TabNetRegressor(BaseTabNet):
         return create_criterion(losses, self.task_weights)
 
     def _build_post_processor(self):
-        self._post_processor = IdentityPostProcessor(self.num_tasks, self.is_cuda)
+        self._post_processor = ClassificationPostProcessor(self.output_dims, self.is_cuda)
+
+        

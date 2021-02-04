@@ -257,5 +257,180 @@ class _Test:
             print(o.size())
 
 
+class TabNetDecoder(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        n_d=8,
+        n_steps=3,
+        n_independent=2,
+        n_shared=2,
+        virtual_batch_size=128,
+        momentum=0.02,
+    ):
+        """
+        Defines main part of the TabNet network without the embedding layers.
+        Parameters
+        ----------
+        input_dim : int
+            Number of features
+        output_dim : int or list of int for multi task classification
+            Dimension of network output
+            examples : one for regression, 2 for binary classification etc...
+        n_d : int
+            Dimension of the prediction  layer (usually between 4 and 64)
+        n_steps : int
+            Number of successive steps in the network (usually between 3 and 10)
+        gamma : float
+            Float above 1, scaling factor for attention updates (usually between 1.0 to 2.0)
+        n_independent : int
+            Number of independent GLU layer in each GLU block (default 2)
+        n_shared : int
+            Number of independent GLU layer in each GLU block (default 2)
+        virtual_batch_size : int
+            Batch size for Ghost Batch Normalization
+        momentum : float
+            Float value between 0 and 1 which will be used for momentum in all batch norm
+        """
+        super(TabNetDecoder, self).__init__()
+        self.input_dim = input_dim
+        self.n_d = n_d
+        self.n_steps = n_steps
+        self.n_independent = n_independent
+        self.n_shared = n_shared
+        self.virtual_batch_size = virtual_batch_size
+
+        self.feat_transformers = torch.nn.ModuleList()
+        self.reconstruction_layers = torch.nn.ModuleList()
+
+        if self.n_shared > 0:
+            shared_feat_transform = torch.nn.ModuleList()
+            for i in range(self.n_shared):
+                if i == 0:
+                    shared_feat_transform.append(Linear(n_d, 2 * n_d, bias=False))
+                else:
+                    shared_feat_transform.append(Linear(n_d, 2 * n_d, bias=False))
+
+        else:
+            shared_feat_transform = None
+
+        for step in range(n_steps):
+            transformer = FeatTransformer(
+                n_d,
+                n_d,
+                shared_feat_transform,
+                n_glu_independent=self.n_independent,
+                virtual_batch_size=self.virtual_batch_size,
+                momentum=momentum,
+            )
+            self.feat_transformers.append(transformer)
+            reconstruction_layer = Linear(n_d, self.input_dim, bias=False)
+            initialize_non_glu(reconstruction_layer, n_d, self.input_dim)
+            self.reconstruction_layers.append(reconstruction_layer)
+
+    def forward(self, steps_output):
+        res = 0
+        for step_nb, step_output in enumerate(steps_output):
+            x = self.feat_transformers[step_nb](step_output)
+            x = self.reconstruction_layers[step_nb](step_output)
+            res = torch.add(res, x)
+        return res
+
+
+class TabNetPretraining(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        pretraining_ratio=0.2,
+        n_d=8,
+        n_a=8,
+        n_steps=3,
+        gamma=1.3,
+        cat_idxs=[],
+        cat_dims=[],
+        cat_emb_dim=1,
+        n_independent=2,
+        n_shared=2,
+        epsilon=1e-15,
+        virtual_batch_size=128,
+        momentum=0.02,
+        mask_type="sparsemax",
+    ):
+        super(TabNetPretraining, self).__init__()
+
+        self.cat_idxs = cat_idxs or []
+        self.cat_dims = cat_dims or []
+        self.cat_emb_dim = cat_emb_dim
+
+        self.input_dim = input_dim
+        self.n_d = n_d
+        self.n_a = n_a
+        self.n_steps = n_steps
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.n_independent = n_independent
+        self.n_shared = n_shared
+        self.mask_type = mask_type
+        self.pretraining_ratio = pretraining_ratio
+
+        if self.n_steps <= 0:
+            raise ValueError("n_steps should be a positive integer.")
+        if self.n_independent == 0 and self.n_shared == 0:
+            raise ValueError("n_shared and n_independent can't be both zero.")
+
+        self.virtual_batch_size = virtual_batch_size
+        self.embedder = EmbeddingGenerator(input_dim, cat_dims, cat_idxs, cat_emb_dim)
+        self.post_embed_dim = self.embedder.post_embed_dim
+
+        self.masker = RandomObfuscator(self.pretraining_ratio)
+        self.encoder = TabNetEncoder(
+            input_dim=self.post_embed_dim,
+            output_dim=self.post_embed_dim,
+            n_d=n_d,
+            n_a=n_a,
+            n_steps=n_steps,
+            gamma=gamma,
+            n_independent=n_independent,
+            n_shared=n_shared,
+            epsilon=epsilon,
+            virtual_batch_size=virtual_batch_size,
+            momentum=momentum,
+            mask_type=mask_type,
+        )
+        self.decoder = TabNetDecoder(
+            self.post_embed_dim,
+            n_d=n_d,
+            n_steps=n_steps,
+            n_independent=n_independent,
+            n_shared=n_shared,
+            virtual_batch_size=virtual_batch_size,
+            momentum=momentum,
+        )
+
+    def forward(self, x):
+        """
+        Returns: res, embedded_x, obf_vars
+            res : output of reconstruction
+            embedded_x : embedded input
+            obf_vars : which variable where obfuscated
+        """
+        embedded_x = self.embedder(x)
+        if self.training:
+            masked_x, obf_vars = self.masker(embedded_x)
+            # set prior of encoder with obf_mask
+            prior = 1 - obf_vars
+            steps_out, _ = self.encoder(masked_x, prior=prior)
+            res = self.decoder(steps_out)
+            return res, embedded_x, obf_vars
+        else:
+            steps_out, _ = self.encoder(embedded_x)
+            res = self.decoder(steps_out)
+            return res, embedded_x, torch.ones(embedded_x.shape).to(x.device)
+
+    def forward_masks(self, x):
+        embedded_x = self.embedder(x)
+        return self.encoder.forward_masks(embedded_x)
+
+
 if __name__ == '__main__':
     _Test.test_build_model_func()

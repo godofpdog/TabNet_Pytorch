@@ -179,7 +179,7 @@ class _PretrainModelBuilder(_BaseBuilder):
     pass
 
 
-def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
+def build_model(model_type, weights_path=None,  =False, **kwargs):
     # TODO support `pretrain_model`
 
     _SUPPORTED_BUILDERS = {
