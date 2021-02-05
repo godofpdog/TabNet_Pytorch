@@ -17,3 +17,9 @@ class RegressionTaskMixin:
     """
     _task_type = 'regression'
 
+
+class PretrainingTaskMixin:
+    """
+    Mixin class for all pre-training criterions and metrics.
+    """
+    _task_type = 'pretraining'
