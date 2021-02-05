@@ -432,5 +432,35 @@ class TabNetPretraining(torch.nn.Module):
         return self.encoder.forward_masks(embedded_x)
 
 
+class RandomObfuscator(torch.nn.Module):
+    """
+    Create and applies obfuscation masks
+    """
+
+    def __init__(self, pretraining_ratio):
+        """
+        This create random obfuscation for self suppervised pretraining
+        Parameters
+        ----------
+        pretraining_ratio : float
+            Ratio of feature to randomly discard for reconstruction
+        """
+        super(RandomObfuscator, self).__init__()
+        self.pretraining_ratio = pretraining_ratio
+
+    def forward(self, x):
+        """
+        Generate random obfuscation mask.
+        Returns
+        -------
+        masked input and obfuscated variables.
+        """
+        obfuscated_vars = torch.bernoulli(
+            self.pretraining_ratio * torch.ones(x.shape)
+        ).to(x.device)
+        masked_input = torch.mul(1 - obfuscated_vars, x)
+        return masked_input, obfuscated_vars
+
+
 if __name__ == '__main__':
     _Test.test_build_model_func()

@@ -456,22 +456,17 @@ class TabNetDecoder(nn.Module):
 
     def _build(self):
         self.feats_transformers = nn.ModuleList()
-        self.dense_layers = nn.ModuleList()
+        self.fc_layers = nn.ModuleList()
 
         # build shared layers
         if self.num_shared > 0:
             shared_layers = nn.ModuleList()
 
-            for i in range(self.num_shared):
+            for _ in range(self.num_shared):
+                shared_layers.append(
+                    nn.Linear(self.reprs_dims, self.reprs_dims * 2, bias=False)
+                )
 
-                if i == 0:
-                    shared_layers.append(
-                        nn.Linear(self.reprs_dims, self.reprs_dims * 2, bias=False)
-                    )
-                else:
-                    shared_layers.append(
-                        nn.Linear(self.reprs_dims * 2, self.reprs_dims * 2, bias=False) # TODO check
-                    )
         else:
             shared_layers = None 
 
@@ -481,14 +476,31 @@ class TabNetDecoder(nn.Module):
                 FeatureTransformer(self.reprs_dims, self.reprs_dims, shared_layers, self.num_indep, self.virtual_batch_size, self.momentum)
             )
 
-            self.dense_layers = nn.Linear(self.reprs_dims, self.input_dims, bias=False)
+            self.fc_layers.append(
+                nn.Linear(self.reprs_dims, self.input_dims, bias=False)
+            )
 
     def forward(self, x):
-        outout = 0
+        """
+        Define forward computation.
+
+        Arguments:
+            x (list of Tensor):
+                The output tensor from `TabNetEncoder` (outputs)
+
+        Returns:
+            r (Tensor)
+                Reconstruction with shape = (batch_size, input_dims)
+
+        """
+        r = 0
 
         for step in range(self.num_steps):
             o = self.feats_transformers[step](x[step])
-            o = self.dense_layers[step]
+            o = self.fc_layers[step]
+            r = torch.add(o, r)
+        
+        return r
 
 
 class EmbeddingEncoder(nn.Module):
@@ -591,6 +603,7 @@ class InferenceModel(nn.Module):
     """
     def __init__(self, embedding_encoder, tabnet_encoder, tabnet_head):
         super(InferenceModel, self).__init__()
+        # TODO check inputs
         self.embedding_encoder = embedding_encoder 
         self.tabnet_encoder = tabnet_encoder
         self.tabnet_head = tabnet_head
@@ -631,6 +644,7 @@ class InferenceModel(nn.Module):
         x = self.embedding_encoder(x)
         return self.tabnet_encoder.explain(x)
 
+
 class _BasePretextModel(nn.Module, abc.ABC):
     """
     Base Class of pretext task model.
@@ -648,68 +662,81 @@ class _BasePretextModel(nn.Module, abc.ABC):
         raise NotImplementedError
 
 
+class BinaryMasker(nn.Module):
+    def __init__(self, mask_rate):
+        super(BinaryMasker, self).__init__()
+        self.mask_rate = mask_rate
+
+    def forward(self, x):
+        """
+        Define the forward computation.
+
+        Arguments:
+            x (torch.Tensor):
+                The embedded features. (output of `EmbeddingEncoder`)
+        
+        Returns:
+            masked_x (torch.Tensor):
+                The mask features.
+
+            mask (torch.Tensor):
+                The binary mask, used to calc init piror and get target for pre-training.
+
+        """
+        mask = torch.bernoulli(self.mask_rate * torch.ones(x.shape)).to(x.device)
+        masked_x = torch.mul(1 - mask, x)
+
+        return masked_x, mask
+
 
 class PretrainModel(nn.Module):
     """
     Implementation of the pre-train model for encoder model pre-training.
 
-    The `PretrainModel` module contain two sub-modules:
+    The `PretrainModel` module contain three sub-modules:
         (1) `EmbeddingEncoder` for categorical features preprocessing.
-        (2) `BinaryMasker` for masking. xxxx
         (2) `TabNetEncoder` for feature extraction.
-        (3) `PretextTaskModel` for self-supervised learning. (subclass of `PretextTaskModel`)
+        (3) `PretextMpdel` for self-supervised learning. (subclass of `_BasePretextModel`)
 
     `PretrainModel`-to-`InferenceModel` conversion is available by calling `convert_model` function.
     
     """
-    def __init__(
-        self, input_dims, output_dims, cate_indices, cate_dims, embed_dims, 
-        reprs_dims=8, atten_dims=8, num_steps=3, gamma=1.3, num_indep=2, 
-        num_shared=2, virtual_batch_size=128, momentum=0.02, mask_type='sparsemax'
-    ):
+    def __init__(self, embedding_encoder, tabnet_encoder, pretext_model):
         super(PretrainModel, self).__init__()
         """
-        Initialization of the `PretrainModel` module.
-        
+        Initialization of `PretrainModel` module.
+
         Arguments:
-            input_dims (int): Dimension of input raw features. 
-            output_dims (list or int): Output dimensions, list of dims means apply multi-task. 
-            cate_indices (list of int or int): Indices of categorical features. 
-            cate_dims (list of int or int): Number of categories in each categorical features. 
-            embed_dims (list of int or int): Dimensions of representation of embedding layer. 
-            reprs_dims (int): Dimension of decision representaion. 
-            atten_dims (int): Dimension of attentive features. 
-            num_steps (int): Number of decision steps. 
-            gamma (float): Scaling factor for attention updates 
-            num_indep (int): Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
-            num_shared (int): Number of shared fully-connected layers cross all steps. 
-            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
-            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
-            mask_type (str): Mask type in `AttentiveTransformer`. 
-            pretext_configs (dict or None): Configurations of building a pretext task model. 
+            embedding_encoder (tabnet.core._models.EmbeddingEncoder):
+                A `EmbeddingEncoder` object for categorical features preprocessing.
+
+            tabnet_encoder (tabnet.core._models.TabNetEncoder):
+                A `TabNetEncoder` object for feature extraction.
+
+            pretext_model (subclass of tabnet.core._models._BasePretextModel)
+                A pretext task model for sppecified SSL pretraining approach.
 
         Returns:
             None
 
         """
+        if not isinstance(embedding_encoder, EmbeddingEncoder):
+            raise TypeError('Argument `embedding_encoder` must be a `EmbeddingEncoder`, but got `{}`.'.format(type(embedding_encoder)))
 
-        self.embedding_encoder = EmbeddingEncoder(
-            input_dims, cate_indices, cate_dims, embed_dims
-        )
+        if not isinstance(tabnet_encoder, TabNetEncoder):
+            raise TypeError('Argument `tabnet_encoder` must be a `TabNetEncoder`, but got `{}`.'.format(type(tabnet_encoder)))
 
-        self.tabnet_encoder = TabNetEncoder(
-            self.embedding_encoder.output_dims, reprs_dims, atten_dims, num_steps,
-            gamma, num_indep, num_shared, virtual_batch_size, momentum, mask_type
-        )
+        if not issubclass(pretext_model, _BasePretextModel):
+            raise TypeError('Class of argument `pretext_model` must be subclass of `_BasePretextModel`')
 
-        self.pretext_model = None 
+        self.embedding_encoder = embedding_encoder
+        self.tabnet_encoder = tabnet_encoder
+        self.pretext_model = pretext_model
+
 
     def forward(self, x):
-        x = self.embedding_encoder(x)
-        d_reprs, m_loss = self.tabnet_encoder(x)
-        reconstruction = self.pretext_model(d_reprs)
+        """
+        Define forward computation.
 
-        return reconstruction, m_loss
-
-        if self.masker is not None:
-            pass
+        """
+        pass
