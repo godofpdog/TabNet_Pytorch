@@ -271,7 +271,6 @@ class TabNetEncoder(nn.Module):
         """
         build tabnet encoder architecture.
         """
-
         hidden_dims = self.reprs_dims + self.atten_dims
 
         # build shared layers
@@ -513,10 +512,17 @@ class EmbeddingEncoder(nn.Module):
         Initialization of `EmbeddingEncoder` module.
 
         Arguments:
-            input_dims (int): Dimension of input raw features. 
-            cate_indices (list of int or int): Indices of categorical features. 
-            cate_dims (list of int or int): Number of categories in each categorical features. 
-            embed_dims (list of int or int): Dimensions of representation of embedding layer. 
+            input_dims (int): 
+                Dimension of input raw features. 
+            
+            cate_indices (list of int or int): 
+                Indices of categorical features. 
+            
+            cate_dims (list of int or int): 
+                Number of categories in each categorical features. 
+            
+            embed_dims (list of int or int): 
+                Dimensions of representation of embedding layer. 
         
         Returns:
             None
@@ -648,7 +654,6 @@ class InferenceModel(nn.Module):
 class _BasePretextModel(nn.Module, abc.ABC):
     """
     Base Class of pretext task model.
-
     """
     def __init__(self, encode_dims):
         pass 
@@ -660,6 +665,46 @@ class _BasePretextModel(nn.Module, abc.ABC):
     @abc.abstractmethod
     def post_process(self, x):
         raise NotImplementedError
+
+
+class TabNetPretextModel(_BasePretextModel):
+    """
+    Implementation of default pretext task model for 
+    sulf-supervised pre-training described in TabNet paper.
+
+    The `TabNetPretextModel` module contains two sub-modules:
+        (1) A `BinaryMasker` module to generate pretext task target and the initial prior.
+        (2) A `TabNetDecoder` module for the reconstruction task.
+
+    """
+    def __init__(
+        self, mask_rate=0.2, input_dims, reprs_dims=8, num_steps=3, 
+        num_indep=2, num_shared=2, virtual_batch_size=128, momentum=0.02
+    ):
+        """
+        Initialization of `TabNetPretextModel` module.
+
+        Arguments:
+            mask_rate (float):
+                xx
+
+            
+
+        """
+        super(TabNetPretextModel, self).__init__()
+        self.masker = BinaryMasker(mask_rate)
+        self.decoder = TabNetDecoder(
+            input_dims, reprs_dims, num_steps, num_indep, num_shared, virtual_batch_size, momentum
+        )
+
+    def forward(self, x):
+        return 
+
+    def pre_process(self, x):
+        return self.masker(x)
+
+    def post_process(self, x):
+        return self.decoder(x)
 
 
 class BinaryMasker(nn.Module):
@@ -739,4 +784,7 @@ class PretrainModel(nn.Module):
         Define forward computation.
 
         """
-        pass
+        x = self.embedding_encoder(x)
+        encoded_x, m_loss = self.tabnet_encoder(x)
+        outputs = self.pretext_model.post_process()
+        

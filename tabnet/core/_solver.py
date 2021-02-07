@@ -136,8 +136,6 @@ def train_epoch(
     return meter
 
 
-            
-
 def eval_epoch(
      model, data_loader, epoch, post_processor, criterion, metrics=None, logger=None, device='cpu'
 ):
@@ -246,3 +244,5 @@ def eval_epoch(
             )
 
     return meter
+
+
