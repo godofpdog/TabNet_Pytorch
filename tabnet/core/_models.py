@@ -22,9 +22,14 @@ class GhostBatchNorm(nn.Module):
         Initialization of `GhostBatchNorm` module.
 
         Arguments:
-            input_dims (int): Dimension of input features.
-            virtual_batch_size (int): Virtual batch size.
-            momentum (float): Momentum parameters.
+            input_dims (int):
+                Dimension of input features.
+
+            virtual_batch_size (int): 
+                Virtual batch size.
+
+            momentum (float): 
+                Momentum parameters.
 
         Returns:
             None
@@ -50,11 +55,20 @@ class GLUBlock(nn.Module):
         Initialization of `GLUBlock` module.
 
         Arguments:
-            input_dims (int): Dimension of input features. 
-            output_dims (int): Dimension of output features. 
-            shared_layer (torch.nn.Linear): Shared fully-connected layer cross all steps.
-            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
-            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+            input_dims (int): 
+                Dimension of input features. 
+
+            output_dims (int): 
+                Dimension of output features. 
+
+            shared_layer (torch.nn.Linear): 
+                Shared fully-connected layer cross all steps.
+
+            virtual_batch_size (int): 
+                Virtual batch size in `GhostBatchNorm` module. 
+
+            momentum (float): 
+                Momentum parameters in `GhostBatchNorm` module. 
         
         Returns:
             None
@@ -83,16 +97,28 @@ class FeatureBlock(nn.Module):
         is_first=False, virtual_batch_size=128, momentum=0.02
     ):
         """
-        Initialization if `FeatureBlock` module.
+        Initialization of `FeatureBlock` module.
 
         Arguments:
-            input_dims (int): Dimension of input features. 
-            output_dims (int): Dimension of output features. 
-            shared_layers (torch.nn.Linear): Shared fully-connected layers cross all steps.
+            input_dims (int): 
+                Dimension of input features. 
+
+            output_dims (int): 
+                Dimension of output features. 
+
+            shared_layers (torch.nn.Linear): 
+                Shared fully-connected layers cross all steps.
+            
             num_glu (int): Number of `GLUBlock` in the module.
-            is_first (bool): If True, means that this module is the first layer of the TabNet model. (different `inout_dims` in `GLUBlock`).
-            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
-            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+
+            is_first (bool): 
+                If True, means that this module is the first layer of the TabNet model. (different `inout_dims` in `GLUBlock`).
+            
+            virtual_batch_size (int): 
+                Virtual batch size in `GhostBatchNorm` module. 
+
+            momentum (float): 
+                Momentum parameters in `GhostBatchNorm` module. 
 
         Returns:
             None
@@ -154,11 +180,20 @@ class AttentiveTransformer(nn.Module):
         Initialization of `AttentiveTransformer` module.
 
         Arguments:
-            input_dims (int): Dimension of input features from `FeatureTransformer`. 
-            output_dims (int): Dimension of output mask, equal to the dimension of input features (number of columns in tabular data). 
-            virtual_batch_size (int):  Virtual batch size in `GhostBatchNorm` module. 
-            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
-            mask_type (str): Mask type in `AttentiveTransformer`. 
+            input_dims (int): 
+                Dimension of input features from `FeatureTransformer`. 
+            
+            output_dims (int): 
+                Dimension of output mask, equal to the dimension of input features (number of columns in tabular data). 
+            
+            virtual_batch_size (int): 
+                Virtual batch size in `GhostBatchNorm` module. 
+            
+            momentum (float): 
+                Momentum parameters in `GhostBatchNorm` module. 
+            
+            mask_type (str): 
+                Mask type in `AttentiveTransformer`. 
         
         Returns:
             None
@@ -193,12 +228,23 @@ class FeatureTransformer(nn.Module):
         Initialization of `FeatureTransformer` module.
 
         Arguments:
-            input_dims (int): Dimension of input features. 
-            output_dims (int): Dimension of output features. 
-            shared_layers (torch.nn.Linear): Shared fully-connected layers cross all steps 
-            num_indep (int): Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
-            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
-            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
+            input_dims (int): 
+                Dimension of input features. 
+
+            output_dims (int): 
+                Dimension of output features. 
+
+            shared_layers (torch.nn.Linear): 
+                Shared fully-connected layers cross all steps.
+
+            num_indep (int): 
+                Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
+            
+            virtual_batch_size (int): 
+                Virtual batch size in `GhostBatchNorm` module.
+
+            momentum (float): 
+                Momentum parameters in `GhostBatchNorm` module. 
 
         Returns:
             None
@@ -239,16 +285,35 @@ class TabNetEncoder(nn.Module):
         Initialization of the `TabNetEncoder` module.
 
         Arguments:
-            input_dims (int): Dimension of input features from `EmbeddingEncoder`. 
-            reprs_dims (int): Dimension of decision representaion. 
-            atten_dims (int): Dimension of attentive features. 
-            num_steps (int): Number of decision steps. 
-            gamma (float): Scaling factor for attention updates 
-            num_indep (int): Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
-            num_shared (int): Number of shared fully-connected layers cross all steps. 
-            virtual_batch_size (int): Virtual batch size in `GhostBatchNorm` module. 
-            momentum (float): Momentum parameters in `GhostBatchNorm` module. 
-            mask_type (str): Mask type in `AttentiveTransformer`. 
+            input_dims (int): 
+                Dimension of input features from `EmbeddingEncoder`. 
+            
+            reprs_dims (int): 
+                Dimension of decision representaion. 
+
+            atten_dims (int): 
+                Dimension of attentive features. 
+
+            num_steps (int): 
+                Number of decision steps. 
+
+            gamma (float): 
+                Scaling factor for attention updates .
+
+            num_indep (int): 
+                Number of step-specified `GLUBlock` in each `FeatureTransformer`. 
+            
+            num_shared (int): 
+                Number of shared fully-connected layers cross all steps. 
+            
+            virtual_batch_size (int): 
+                Virtual batch size in `GhostBatchNorm` module. 
+            
+            momentum (float): 
+                Momentum parameters in `GhostBatchNorm` module.
+
+            mask_type (str): 
+                Mask type in `AttentiveTransformer`. 
 
         Returns:
             None
@@ -318,14 +383,24 @@ class TabNetEncoder(nn.Module):
         Define forward computation.
 
         Arguments:
-            x (Tensor): Input tensor.
-            is_explain (bool): If True, return interpretive infomation.
+            x (Tensor): 
+                Input tensor.
+
+            is_explain (bool): 
+                If True, return interpretive infomation.
 
         Returns:
-            outputs (list of Tensors): Decision representations of each steps.
-            m_loss (Tensor): The Mask loss.
-            m_explain (Tensor): Mask interpretive infomation.
-            masks (dict of Tensor): Attentive mask of each steps.
+            outputs (list of Tensors): 
+                Decision representations of each steps.
+
+            m_loss (Tensor): 
+                The Mask loss.
+
+            m_explain (Tensor): 
+                Mask interpretive infomation.
+
+            masks (dict of Tensor): 
+                Attentive mask of each steps.
 
         """
         m_loss = 0
@@ -368,11 +443,15 @@ class TabNetEncoder(nn.Module):
         Compute interpretive infomation
 
         Arguments:
-            x (Tensor): Input tensor.
+            x (Tensor): 
+                Input tensor.
 
         Returns:
-            m_explain (Tensor): Mask interpretive infomation.
-            masks (dict of Tensor): Attentive mask of each steps.
+            m_explain (Tensor): 
+                Mask interpretive infomation.
+
+            masks (dict of Tensor): 
+                Attentive mask of each steps.
 
         """
         prior = torch.ones_like(x).to(x.device)
@@ -405,8 +484,11 @@ class TabNetHead(nn.Module):
         Initialization of `TabNetHead` module.
 
         Arguments:
-            reprs_dims (int): Dimension of decision representation. 
-            output_dims (list or int): Output dimensions, list of dims means apply multi-task. 
+            reprs_dims (int): 
+                Dimension of decision representation. 
+
+            output_dims (list or int): 
+                Output dimensions, list of dims means apply multi-task. 
 
         Returns:
             None
@@ -619,14 +701,24 @@ class InferenceModel(nn.Module):
         Define forward computation.
 
         Arguments:
-            x (Tensor): Input tensor.
-            is_explain (bool): If True, return interpretive infomation.
+            x (Tensor): 
+                Input tensor.
+
+            is_explain (bool): 
+                If True, return interpretive infomation.
 
         Returns:
-            outputs (Tensors): Outputs of the inference model.
-            m_loss (Tensor): The Mask loss.
-            m_explain (Tensor): Mask interpretive infomation.
-            masks (dict of Tensor): Attentive mask of each steps.
+            outputs (Tensors): 
+                Outputs of the inference model.
+
+            m_loss (Tensor): 
+                The Mask loss.
+
+            m_explain (Tensor): 
+                Mask interpretive infomation.
+
+            masks (dict of Tensor): 
+                Attentive mask of each steps.
 
         """
         x = self.embedding_encoder(x)
@@ -655,16 +747,52 @@ class _BasePretextModel(nn.Module, abc.ABC):
     """
     Base Class of pretext task model.
     """
-    def __init__(self, encode_dims):
-        pass 
+    def __init__(self, embedding_dims):
+        """
+        Initialization of `_BasePretextModel`
+
+        Arguments:
+            embedding_dims (int):
+                Dimension of the encoded features from `TabNetEncoder`.
+
+        Returns:
+            None
+
+        """
+        if not isinstance(embedding_dims, int):
+            raise TypeError('Type of argument `embedding_dims` must be `int`, but got `{}`'.format(type(embedding_dims)))
+        
+        self.embedding_dims = embedding_dims
     
     @abc.abstractmethod
     def pre_process(self, x):
+        """
+        Processing(s) before `TabNetEncoder` (after `EmbeddingEncoder`)
+        
+        Arguments:
+            x (torch.Tensor):
+                Embedded features from `EmbeddingEncoder`.
+
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
     def post_process(self, x):
+        """
+        Processing(s) after `TabNetEncoder`.
+
+        Arguments:
+            x (torch.Tensor):
+                Representation embeddings from `TabNetEncoder`.
+
+        """
         raise NotImplementedError
+
+    def forward(self, x):
+        """
+        Useless method.
+        """
+        return 
 
 
 class TabNetPretextModel(_BasePretextModel):
@@ -678,27 +806,22 @@ class TabNetPretextModel(_BasePretextModel):
 
     """
     def __init__(
-        self, mask_rate=0.2, input_dims, reprs_dims=8, num_steps=3, 
-        num_indep=2, num_shared=2, virtual_batch_size=128, momentum=0.02
+        self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, num_shared=2, 
+        virtual_batch_size=128, momentum=0.02, mask_rate=0.2
     ):
         """
         Initialization of `TabNetPretextModel` module.
 
         Arguments:
             mask_rate (float):
-                xx
-
-            
+                The proportion of masked features (by column).
 
         """
-        super(TabNetPretextModel, self).__init__()
+        super(TabNetPretextModel, self).__init__(reprs_dims)
         self.masker = BinaryMasker(mask_rate)
         self.decoder = TabNetDecoder(
             input_dims, reprs_dims, num_steps, num_indep, num_shared, virtual_batch_size, momentum
         )
-
-    def forward(self, x):
-        return 
 
     def pre_process(self, x):
         return self.masker(x)
@@ -722,7 +845,7 @@ class BinaryMasker(nn.Module):
         
         Returns:
             masked_x (torch.Tensor):
-                The mask features.
+                The masked features.
 
             mask (torch.Tensor):
                 The binary mask, used to calc init piror and get target for pre-training.
@@ -736,9 +859,9 @@ class BinaryMasker(nn.Module):
 
 class PretrainModel(nn.Module):
     """
-    Implementation of the pre-train model for encoder model pre-training.
+    Implementation of the pre-training model for encoder model pre-training.
 
-    The `PretrainModel` module contain three sub-modules:
+    The `PretrainModel` module contains three sub-modules:
         (1) `EmbeddingEncoder` for categorical features preprocessing.
         (2) `TabNetEncoder` for feature extraction.
         (3) `PretextMpdel` for self-supervised learning. (subclass of `_BasePretextModel`)
@@ -785,6 +908,7 @@ class PretrainModel(nn.Module):
 
         """
         x = self.embedding_encoder(x)
-        encoded_x, m_loss = self.tabnet_encoder(x)
+        self.pretext_model.pre_process(x)
+        encoded_x, m_loss = self.tabnet_encoder(embedded_x)
         outputs = self.pretext_model.post_process()
         

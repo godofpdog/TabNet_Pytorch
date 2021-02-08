@@ -15,7 +15,7 @@ class Loss(nn.Module, abc.ABC):
         self._loss_func = None 
     
     @abc.abstractmethod
-    def score_func(self, preds, targets):
+    def score_func(self, preds, targets, **kwargs):
         raise NotImplementedError
 
     def forward(self, preds, targets, **kwargs):

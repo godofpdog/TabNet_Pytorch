@@ -8,7 +8,7 @@ from ._base import Loss, _Criterion
 from ._builder import get_loss, create_criterion
 from ._regression import MSELoss
 from ._classification import BinaryCrossEntropyLoss, MutiClassCrossEntropyLoss
-
+from ._pretraining import TabNetPretrainingLoss
 
 # TODO alias
 
@@ -20,5 +20,6 @@ __all__ = [
     'create_criterion',
     'MSELoss',
     'BinaryCrossEntropyLoss',
-    'MutiClassCrossEntropyLoss'
+    'MutiClassCrossEntropyLoss',
+    'TabNetPretrainingLoss'
 ]
