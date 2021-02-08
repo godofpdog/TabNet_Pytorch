@@ -13,7 +13,7 @@ from ..utils.utils import Meter
 from ..utils.validation import is_metric, check_input_data
 from ..metrics import get_metric, Metric
 from ..core import (
-    build_model, load_weights, train_epoch, eval_epoch, create_data_loader, InferenceModel
+    build_model, load_weights, create_data_loader, InferenceModel, get_trainer
 )
 
 
@@ -335,6 +335,9 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             )
         else:
             valid_loader = None
+        
+        # init trainer
+        trainer = get_trainer(trainer_type='tabnet_trainer')
 
         # start training
         show_message('[TabNet] start training.', logger=self.logger, level='INFO')
@@ -346,9 +349,14 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             )
 
             # training
-            train_meter = train_epoch(
-                self._model, train_loader, epoch, self._post_processor, self._criterion,
-                self._optimizer, self._metrics, self.logger, self.device
+            # train_meter = train_epoch(
+            #     self._model, train_loader, epoch, self._post_processor, self._criterion,
+            #     self._optimizer, self._metrics, self.logger, self.device
+            # )
+
+            train_meter = trainer.train_epoch(
+                self._model, train_loader, self._criterion, self._optimizer, 
+                self._metrics, self.logger, self.device, post_processor=self._post_processor
             )
 
             self._update_meters(train_meter, 'train')

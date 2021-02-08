@@ -1,7 +1,10 @@
 
 import os
 import abc 
+import copy
 import numpy as np  
+import pandas as pd 
+from sklearn.preprocessing import LabelEncoder
 from collections import defaultdict
 
 def mkdir(path):
@@ -19,7 +22,7 @@ class _BasePreprocessor(abc.ABC):
         pass 
 
     def _check_data(self, data):
-        if isinstance(data, (np.ndarray, pd.DataFrame, pd.Series)):
+        if not isinstance(data, (np.ndarray, pd.DataFrame, pd.Series)):
             raise TypeError(
                 'Type of input data must be `np.ndarray` or `pd.DataFrame` or pd.Series.'
             )
@@ -32,8 +35,8 @@ class _BasePreprocessor(abc.ABC):
     def infer(self, *args, **kwargs):
         raise NotImplementedError
 
-    def fit_infer(self, x):
-        return self.fit(x).infer(x)
+    def fit_infer(self, x, **kwargs):
+        return self.fit(x, **kwargs).infer(x)
 
 
 class CatePreprocessor(_BasePreprocessor):
@@ -57,18 +60,19 @@ class CatePreprocessor(_BasePreprocessor):
             self
 
         """
-        self.check_infer_data(input_features)
+        # self.check_infer_data(input_features)
 
         if not isinstance(cate_indices, (int, list)):
             raise TypeError('Type of argument `cate_indices` must be `int` or `list`')
 
         if isinstance(cate_indices, int):
-            cate_indices = [cate_indices]
-        self.cate_indices = cate_indices
+            self.cate_indices = [cate_indices]
+        else:
+            self.cate_indices = cate_indices
 
-        for _ in self.cate_indices:
+        for i in self.cate_indices:
             self._label_encoders.append(
-                LabelEncoder().fit(input_features)
+                LabelEncoder().fit(input_features[..., i].reshape(-1))
             )
 
         return self 
@@ -100,7 +104,7 @@ class CatePreprocessor(_BasePreprocessor):
         trans = copy.deepcopy(input_features)
         cate_dims = []
 
-        for i, index in self.cate_indices:
+        for i, index in enumerate(self.cate_indices):
             feats = input_features[..., index].reshape(-1)
             trans[..., index] = self._label_encoders[i].transform(feats)
             cate_dims.append(len(self._label_encoders[i].classes_))
@@ -120,7 +124,7 @@ class CatePreprocessor(_BasePreprocessor):
         """
         # TODO return indices 
 
-        for i, index in self.cate_indices:
+        for i, index in enumerate(self.cate_indices):
             feats = x[..., index]
 
             if not set(np.unique(feats)).issubset(set(self._label_encoders[i].classes_)):
