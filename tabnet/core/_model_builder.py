@@ -18,6 +18,8 @@ class _BaseBuilder(abc.ABC):
         model = self._build(**kwargs)
         self._load_weights(model)
 
+        print('00000000 is cuda ', is_cuda)
+
         if is_cuda:
             model = model.cuda()
 

@@ -92,28 +92,7 @@ class _BaseTrainer(abc.ABC):
         """
         return self._run_epoch(model, data_loader, criterion, metrics, logger, device, False, **kwargs)
     
-    # @classmethod
     def _run_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, logger=None, device='cpu', is_train=True):
-        
-        # print('model : ', type(model))
-        # print('data_loader : ', type(data_loader))
-        # print('criterion : ', type(criterion))
-        # print('optimizer : ', type(optimizer))
-        # print('metrics : ', type(metrics))
-        # print('logger : ', type(logger))
-        # print('device : ', type(device))
-        # print('is_train : ', type(is_train))
-        """
-        model :  <class 'tabnet.core._models.InferenceModel'>
-        data_loader :  <class 'torch.utils.data.dataloader.DataLoader'>
-        criterion :  <class 'tabnet.criterions._base._Criterion'>
-        optimizer :  <class 'torch.optim.adam.Adam'>
-        metrics :  <class 'list'>
-        logger :  <class 'NoneType'>
-        device :  <class 'str'>
-        is_train :  <class 'bool'>
-
-        """
 
         """
         Run one epoch.
@@ -143,7 +122,7 @@ class _BaseTrainer(abc.ABC):
             if is_train:
                 updates = self.train_batch(
                     model, data, criterion, optimizer, post_processor,
-                    metrics=None, logger=None, device='cpu'
+                    metrics=metrics, logger=None, device='cpu'
                 )
             else:
                 pass
@@ -157,12 +136,6 @@ class _BaseTrainer(abc.ABC):
                 self.show_info(meter, logger)
 
         return meter
-
-    # def _run_bach(self, model, data, criterion, optimizer, post_processor, metrics, logger, device, is_train):
-    #     if is_train:
-    #         return self.train_batch(model, data, criterion, optimizer, post_processor, metrics, device)
-    #     else:
-    #         return self.eval_batch()
             
     @abc.abstractmethod
     def train_batch(self, model, data, criterion, optimizer, post_processor, **kwargs):

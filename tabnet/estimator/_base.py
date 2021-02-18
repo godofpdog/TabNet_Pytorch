@@ -2,6 +2,7 @@
 
 import abc
 import torch
+import numpy as np 
 from sklearn.base import BaseEstimator
 from torch.optim.optimizer import Optimizer
 from torch.optim.optimizer import Optimizer
@@ -385,6 +386,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             logger=self.logger, level='INFO'
         )
 
+        del trainer
         return self
         
     def predict(self, feats, **kwargs):
