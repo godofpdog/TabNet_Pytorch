@@ -61,7 +61,7 @@ class TabularDataset(Dataset):
 def create_data_loader(feats, targets, batch_size=1024, is_shuffle=True, num_workers=4, pin_memory=True):
     dataset = TabularDataset(feats, targets)
     data_loader = DataLoader(
-        dataset, batch_size, shuffle=is_shuffle, drop_last=True,  # NOTE drop_last is for gbn
+        dataset, batch_size, shuffle=is_shuffle, drop_last=False,  # NOTE drop_last is for gbn
         num_workers=num_workers, pin_memory=pin_memory
     )
 

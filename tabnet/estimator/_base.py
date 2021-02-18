@@ -349,12 +349,6 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 logger=self.logger, level='INFO'
             )
 
-            # training
-            # train_meter = train_epoch(
-            #     self._model, train_loader, epoch, self._post_processor, self._criterion,
-            #     self._optimizer, self._metrics, self.logger, self.device
-            # )
-
             train_meter = trainer.train_epoch(
                 self._model, train_loader, self._criterion, self._optimizer, 
                 self._post_processor, self._metrics, self.logger, self.device
@@ -418,9 +412,6 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         with torch.no_grad():
 
             for i, data in enumerate(data_loader):
-                print('===== device')
-                prnit(self.device)
-                
                 outputs, _ = self._model(data.to(self.device))
                 processed_outouts = self._post_processor(outputs)
                 
