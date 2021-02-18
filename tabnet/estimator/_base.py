@@ -418,6 +418,9 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         with torch.no_grad():
 
             for i, data in enumerate(data_loader):
+                print('===== device')
+                prnit(self.device)
+                
                 outputs, _ = self._model(data.to(self.device))
                 processed_outouts = self._post_processor(outputs)
                 
