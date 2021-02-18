@@ -330,7 +330,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             feats, targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
         )
 
-        if valid_feats and valid_targets:
+        if valid_feats is not None and valid_targets is not None:
             valid_loader = create_data_loader(
                 valid_feats, valid_targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
             )

@@ -134,8 +134,8 @@ class _BaseTrainer(abc.ABC):
 
             meter.update(updates=updates)
 
-            if logger is not None:
-                self.show_info(meter, logger)
+            # if logger is not None:
+            #     self.show_info(meter, logger)
 
         return meter
             
