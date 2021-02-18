@@ -307,12 +307,77 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         
         return scheduler_objects
 
-    def pretrain(self):
-        raise NotImplementedError
+    def pretrain(self, feats, batch_size=1024, max_epochs=2000, 
+                 optimizer=None, optimizer_params=None, schedulers=None, 
+                 scheduler_params=None, algorithm='tabnet_pretrainer'):
+
+        """
+        Pre-train on un-labeled dataset.
+        """
+
+        # build model
+        if self._model is not None:
+            
+        
+        self.batch_size = batch_size
+
+        # setup metrics
+        self._metrics = self.set_metrics(None)
+
+        # init optimizer
+        self._optimizer = self._init_optimizer(optimizer, optimizer_params)
+
+        # init schedulers
+        self._schedulers = self._init_schedulers(schedulers, scheduler_params)
+
+        # create data loaders
+        train_loader = create_data_loader(
+            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+        )
+
+        # init trainer
+        trainer = get_trainer(trainer_type=algorithm)
+
+        # start training
+        show_message('[TabNet] start training.', logger=self.logger, level='INFO')
+
+        for epoch in range(max_epochs):
+            show_message(
+                '[TabNet] ******************** epoch : {} ********************'.format(epoch),
+                logger=self.logger, level='INFO'
+            )
+
+            train_meter = trainer.train_epoch(
+                self._model, train_loader, self._criterion, self._optimizer, 
+                self._post_processor, self._metrics, self.device
+            )
+
+            self._update_meters(train_meter, 'train')
+            
+            # update schedulers
+            if self._schedulers is not None:
+                self._schedulers_step()
+
+        show_message(
+            '[TabNet] training complete.', 
+            logger=self.logger, level='INFO'
+        )
+
+        show_message(
+            '[TabNet] ******************** Summary Info ********************',
+            logger=self.logger, level='INFO'
+        )
+
+        del trainer
+        return self
 
     def fit(self, feats, targets, batch_size=1024, max_epochs=2000, 
             optimizer=None, optimizer_params=None, schedulers=None, scheduler_params=None,
             metrics=None, valid_feats=None, valid_targets=None, valid_metrics=None):
+
+        """
+        Fit TabNet model on specified tasks.
+        """
 
         self.batch_size = batch_size
 
@@ -368,7 +433,6 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             # update schedulers
             if self._schedulers is not None:
                 self._schedulers_step()
-
 
         show_message(
             '[TabNet] training complete.', 

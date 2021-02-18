@@ -6,7 +6,7 @@ import torch
 import numpy as np 
 
 from ._models import (
-    TabNetEncoder, TabNetHead, EmbeddingEncoder, InferenceModel
+    TabNetEncoder, TabNetHead, EmbeddingEncoder, InferenceModel, PretrainModel
 )
 
 
@@ -176,7 +176,11 @@ class _InferenceModelBuilder(_BaseBuilder):
 
 
 class _PretrainModelBuilder(_BaseBuilder):
-    pass
+    def __init__(self, weights_path):
+        super(_PretrainModelBuilder, self).__init__(weights_path)
+
+    def _build(self):
+        pass 
 
 
 def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
@@ -195,3 +199,75 @@ def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
         return builder(weights_path).build(is_cuda, **kwargs)
     else:
         raise ValueError('Not supported model type.')
+
+
+class ModelConverter:
+
+    @classmethod
+    def to_pretrain(cls, model, algorithm, params):
+        """
+        Convert to `PretrainModel`.
+
+        Arguments:
+            model (tabnet.core.model.PretrainModel or tabnet.core.model.InferenceModel)
+                A model object.
+
+            algorithm (str):
+                Pre-training algorithm.
+
+            params (dict):
+                Training parameters of the pre-training algorithm.
+
+        Returns:
+            (tanbet.core.PretrainModel):
+                A converted model object.
+
+        """
+        model_type = model.__class__
+
+        if model_type == PretrainModel:
+            return model 
+
+        elif model_type == InferenceModel:
+            return _convert(model)
+
+        else:
+            raise TypeError('Invalid model type.')
+
+
+        def _convert(model):
+            return model
+
+    @classmethod
+    def to_inference(cls, model, configs):
+        """
+        Convert to `InferenceModel`.
+
+        Arguments:
+            model (tabnet.core.model.PretrainModel or tabnet.core.model.InferenceModel)
+                A model object.
+
+            algorithm (str):
+                Pre-training algorithm.
+
+            configs (dict):
+                Model architecture configurations.
+
+        Returns:
+            (tanbet.core.InferenceModel):
+                A converted model object.
+
+        """
+        model_type = model.__class__
+        
+        if model_type == InferenceModel:
+            return model
+        
+        elif model_type == PretrainModel:
+            return _convert(model)
+
+        else:
+            raise TypeError('Invalid model type.')
+
+        def _convert(model):
+            return model
