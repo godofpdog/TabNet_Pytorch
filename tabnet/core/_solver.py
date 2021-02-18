@@ -25,8 +25,7 @@ class _BaseTrainer(abc.ABC):
     def __init__(self):
         pass
     
-    def train_epoch(self, model, data_loader, criterion, optimizer, 
-                    post_processor, metrics=None, logger=None, device='cpu'):
+    def train_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, device='cpu'):
         """
         Train on one epoch.
 
@@ -60,9 +59,9 @@ class _BaseTrainer(abc.ABC):
                 A `Meter` object contains the training / evaluation info.
 
         """
-        return self._run_epoch(model, data_loader, criterion, optimizer, post_processor, metrics, logger, device, True)
+        return self._run_epoch(model, data_loader, criterion, optimizer, post_processor, metrics, device, True)
     
-    def eval_epoch(self, model, data_loader, criterion, metrics=None, logger=None, device='cpu', **kwargs):
+    def eval_epoch(self, model, data_loader, criterion, post_processor, metrics=None, device='cpu'):
         """
         Evaluate on one epoch.
 
@@ -75,12 +74,12 @@ class _BaseTrainer(abc.ABC):
 
             criterion (tabnet.criterions._Criterion):
                 A `_Criterion` object to compute the final loss value.
+            
+            post_processor (subclsss of tabnet.estimator.BasePostProcessor):
+                A computation module to calc the final result.
 
             metrics (list of valid metric objects):  # TODO check??
                 List of metric scorers.
-
-            logger (logging.Logger):
-                The system logger object.
 
             device (str):
                 The computation device.
@@ -90,9 +89,9 @@ class _BaseTrainer(abc.ABC):
                 A `Meter` object contains the training / evaluation info.
 
         """
-        return self._run_epoch(model, data_loader, criterion, metrics, logger, device, False, **kwargs)
+        return self._run_epoch(model, data_loader, criterion, None, post_processor, metrics, device, False)
     
-    def _run_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, logger=None, device='cpu', is_train=True):
+    def _run_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, device='cpu', is_train=True):
 
         """
         Run one epoch.
@@ -122,11 +121,14 @@ class _BaseTrainer(abc.ABC):
             if is_train:
                 updates = self.train_batch(
                     model, data, criterion, optimizer, post_processor,
-                    metrics=metrics, logger=None, device='cpu'
+                    metrics=metrics, device=device
                 )
             else:
                 pass
-                # updates = self.eval_batch(model, data, criterion, **kwargs)
+                updates = self.eval_batch(
+                    model, data, criterion, post_processor,
+                    metrics=metrics, device=device
+                )
 
             updates['time_cost'] = round(time.time() - start, DIGITS)
 
@@ -142,7 +144,7 @@ class _BaseTrainer(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def eval_batch(self):
+    def eval_batch(self, model, data, criterion, post_processor, **kwargs):
         raise NotImplementedError
     
     @abc.abstractmethod
@@ -462,7 +464,7 @@ class TabNetTrainer(_BaseTrainer):
 
         return None
 
-    def train_batch(self, model, data, criterion, optimizer, post_processor, metrics=None, logger=None, device='cpu'):
+    def train_batch(self, model, data, criterion, optimizer, post_processor, metrics=None, device='cpu'):
         """
         Train on one batch.
 
@@ -484,9 +486,6 @@ class TabNetTrainer(_BaseTrainer):
 
             metrics (list of valid metric objects):  # TODO check??
                 List of metric scorers.
-
-            logger (logging.Logger):
-                The system logger object.
 
             device (str):
                 The computation device.
@@ -529,7 +528,7 @@ class TabNetTrainer(_BaseTrainer):
 
         return updates
 
-    def eval_batch(self, model, data, criterion, post_processor=None, metrics=None, logger=None, device='cpu'):
+    def eval_batch(self, model, data, criterion, post_processor=None, metrics=None, device='cpu'):
         """
         Evaluate on one batch.
 
@@ -548,9 +547,6 @@ class TabNetTrainer(_BaseTrainer):
 
             metrics (list of valid metric objects):  # TODO check??
                 List of metric scorers.
-
-            logger (logging.Logger):
-                The system logger object.
 
             device (str):
                 The computation device.

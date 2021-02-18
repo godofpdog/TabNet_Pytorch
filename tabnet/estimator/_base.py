@@ -351,16 +351,16 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
             train_meter = trainer.train_epoch(
                 self._model, train_loader, self._criterion, self._optimizer, 
-                self._post_processor, self._metrics, self.logger, self.device
+                self._post_processor, self._metrics, self.device
             )
 
             self._update_meters(train_meter, 'train')
             
             # validation
             if valid_loader is not None:
-                valid_meter = eval_epoch(
-                    self._model, valid_loader, epoch, self._post_processor, self._criterion, 
-                    self._metrics, self.logger, self.device 
+                valid_meter = trainer.eval_epoch(
+                    self._model, valid_loader, self._criterion, 
+                    self._post_processor, self._metrics, self.device
                 )
 
                 self._update_meters(valid_meter, 'valid')
