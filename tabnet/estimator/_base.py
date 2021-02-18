@@ -403,7 +403,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             self.batch_size = len(feats)
 
         data_loader = create_data_loader(
-            feats, None, self.batch_size, False, self.num_workers, self.pin_memory
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
         )
 
         self._model.eval()
