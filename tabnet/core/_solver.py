@@ -22,8 +22,11 @@ class _BaseTrainer(abc.ABC):
     """
     Base class of Trainers.
     """
+    def __init__(self):
+        pass
     
-    def train_epoch(self, model, data_loader, criterion, optimizer, metrics=None, logger=None, device='cpu', **kwargs):
+    def train_epoch(self, model, data_loader, criterion, optimizer, 
+                    post_processor, metrics=None, logger=None, device='cpu'):
         """
         Train on one epoch.
 
@@ -40,6 +43,9 @@ class _BaseTrainer(abc.ABC):
             optimizer:
                 A Pytorch optimizer.
 
+            post_processor (subclsss of tabnet.estimator.BasePostProcessor):
+                A computation module to calc the final result.
+
             metrics (list of valid metric objects):  # TODO check??
                 List of metric scorers.
 
@@ -54,7 +60,7 @@ class _BaseTrainer(abc.ABC):
                 A `Meter` object contains the training / evaluation info.
 
         """
-        return self._run_epoch(model, data_loader, criterion, optimizer, metrics, logger, device, True, **kwargs)
+        return self._run_epoch(model, data_loader, criterion, optimizer, post_processor, metrics, logger, device, True)
     
     def eval_epoch(self, model, data_loader, criterion, metrics=None, logger=None, device='cpu', **kwargs):
         """
@@ -86,18 +92,28 @@ class _BaseTrainer(abc.ABC):
         """
         return self._run_epoch(model, data_loader, criterion, metrics, logger, device, False, **kwargs)
     
-    @classmethod
-    def _run_epoch(self, model, data_loader, criterion, optimizer=None, metrics=None, logger=None, device='cpu', is_train=True, **kwargs):
+    # @classmethod
+    def _run_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, logger=None, device='cpu', is_train=True):
         
-        print('model : ', type(model))
-        print('data_loader : ', type(data_loader))
-        print('criterion : ', type(criterion))
-        print('optimizer : ', type(optimizer))
-        print('metrics : ', type(metrics))
-        print('logger : ', type(logger))
-        print('device : ', type(device))
-        print('is_train : ', type(is_train))
-        print('kwargs = ', kwargs)
+        # print('model : ', type(model))
+        # print('data_loader : ', type(data_loader))
+        # print('criterion : ', type(criterion))
+        # print('optimizer : ', type(optimizer))
+        # print('metrics : ', type(metrics))
+        # print('logger : ', type(logger))
+        # print('device : ', type(device))
+        # print('is_train : ', type(is_train))
+        """
+        model :  <class 'tabnet.core._models.InferenceModel'>
+        data_loader :  <class 'torch.utils.data.dataloader.DataLoader'>
+        criterion :  <class 'tabnet.criterions._base._Criterion'>
+        optimizer :  <class 'torch.optim.adam.Adam'>
+        metrics :  <class 'list'>
+        logger :  <class 'NoneType'>
+        device :  <class 'str'>
+        is_train :  <class 'bool'>
+
+        """
 
         """
         Run one epoch.
@@ -121,15 +137,17 @@ class _BaseTrainer(abc.ABC):
         meter = Meter()
 
         for data in data_loader:
+
             start = time.time()
 
             if is_train:
                 updates = self.train_batch(
-                    model, data, criterion, 
-                    optimizer=optimizer, metrics=None, logger=None, device='cpu', **kwargs
+                    model, data, criterion, optimizer, post_processor,
+                    metrics=None, logger=None, device='cpu'
                 )
             else:
-                updates = self.eval_batch( model, data, criterion, **kwargs)
+                pass
+                # updates = self.eval_batch(model, data, criterion, **kwargs)
 
             updates['time_cost'] = round(time.time() - start, DIGITS)
 
@@ -139,17 +157,23 @@ class _BaseTrainer(abc.ABC):
                 self.show_info(meter, logger)
 
         return meter
+
+    # def _run_bach(self, model, data, criterion, optimizer, post_processor, metrics, logger, device, is_train):
+    #     if is_train:
+    #         return self.train_batch(model, data, criterion, optimizer, post_processor, metrics, device)
+    #     else:
+    #         return self.eval_batch()
             
     @abc.abstractmethod
-    def train_batch(self, *args, **kwargs):
+    def train_batch(self, model, data, criterion, optimizer, post_processor, **kwargs):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def eval_batch(self, *args, **kwargs):
+    def eval_batch(self):
         raise NotImplementedError
     
     @abc.abstractmethod
-    def _check_model(self):
+    def _check_model(self, model):
         raise NotImplementedError
 
     @classmethod
@@ -452,6 +476,8 @@ class _BaseTrainer(abc.ABC):
 
 
 class TabNetTrainer(_BaseTrainer):
+    def __init__(self):
+        super(TabNetTrainer, self).__init__()
 
     @classmethod
     def _check_model(cls, model):
@@ -463,7 +489,7 @@ class TabNetTrainer(_BaseTrainer):
 
         return None
 
-    def train_batch(self, model, data, criterion, optimizer=None, post_processor=None, metrics=None, logger=None, device='cpu'):
+    def train_batch(self, model, data, criterion, optimizer, post_processor, metrics=None, logger=None, device='cpu'):
         """
         Train on one batch.
 

@@ -356,7 +356,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
             train_meter = trainer.train_epoch(
                 self._model, train_loader, self._criterion, self._optimizer, 
-                self._metrics, self.logger, self.device, post_processor=self._post_processor
+                self._post_processor, self._metrics, self.logger, self.device
             )
 
             self._update_meters(train_meter, 'train')
@@ -628,7 +628,7 @@ class BasePostProcessor(abc.ABC, torch.nn.Module):
                 processor.cuda()
 
     @abc.abstractmethod
-    def _build(self, **kwargs):
+    def _build(self, num_tasks, **kwargs):
         raise NotImplementedError
 
     @abc.abstractmethod
