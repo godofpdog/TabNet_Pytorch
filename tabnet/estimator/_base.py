@@ -18,6 +18,7 @@ from ..core import (
     build_model, load_weights, create_data_loader, InferenceModel, get_trainer, ModelConverter
 )
 
+# TODO the inference batch size issue
 
 class BaseTabNet(BaseEstimator, abc.ABC):
     def __init__(
@@ -502,11 +503,12 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         self._check_post_processor(self._post_processor)
         check_input_data(feats)
 
-        if len(feats) < self.batch_size:
-            self.batch_size = len(feats)
+        # if len(feats) < self.batch_size:
+        #     self.batch_size = len(feats)
+        # self.batch_size = len(feats)
 
         data_loader = create_data_loader(
-            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
+            feats, None, len(feats), False, self.num_workers, self.pin_memory, is_drop_last=False
         )
 
         self._model.eval()
@@ -584,11 +586,11 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         check_input_data(feats)
 
-        if len(feats) < self.batch_size:
-            self.batch_size = len(feats)
+        # if len(feats) < self.batch_size:
+        #     self.batch_size = len(feats)
 
         data_loader = create_data_loader(
-            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
+            feats, None, len(feats), False, self.num_workers, self.pin_memory, is_drop_last=False
         )
 
         self._model.eval()
@@ -598,7 +600,6 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         with torch.no_grad():
             
             for i, data in enumerate(data_loader):
-                print(data.size())
                 outputs, _ = self._model.tabnet_encoder(data.to(self.device))
                 outputs = torch.sum(torch.stack(outputs, dim=0), dim=0)
                 
