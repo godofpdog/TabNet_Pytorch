@@ -374,7 +374,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         # setup trainer and criterion
         algorithm = algorithm_params['algorithm']
-        trainer = get_trainer(trainer_type=algorithm)
+        trainer = get_trainer(training_type=algorithm)
         criterion = get_loss(algorithm).to(self.device)
 
         # start training
