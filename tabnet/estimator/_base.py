@@ -599,6 +599,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             
             for i, data in enumerate(data_loader):
                 outputs, _ = self._model.tabnet_encoder(data.to(self.device))
+                outputs = torch.sum(torch.stack(outputs, dim=0), dim=0)
                 
                 if i == 0:
                     reprs = outputs.cpu().numpy()

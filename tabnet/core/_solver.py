@@ -417,10 +417,6 @@ class TabNetPretrainer(_BaseTrainer):
             'mask_loss': mask_loss.item(),
         }
 
-        print('======')
-        print('task_loss = ', task_loss.item())
-        print('mask_loss = ', mask_loss.item())
-
         return updates
 
     def eval_batch(self):
