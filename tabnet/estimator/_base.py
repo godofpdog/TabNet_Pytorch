@@ -310,7 +310,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
     def pretrain(self, feats, batch_size=512, max_epochs=2000, 
                  optimizer=None, optimizer_params=None, schedulers=None, 
-                 scheduler_params=None, algorithm='tabnet_pretrainer'):
+                 scheduler_params=None, algorithm_params=None):
 
         """
         Pre-train on un-labeled dataset.
@@ -568,7 +568,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         with torch.no_grad():
             
             for i, data in enumerate(data_loader):
-                outputs, _ = self._model(data.to(self.device))
+                outputs, _ = self._model.tabnet_encoder(data.to(self.device))
                 
                 if i == 0:
                     reprs = outputs.cpu().numpy()

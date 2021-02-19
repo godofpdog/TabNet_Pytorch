@@ -113,13 +113,8 @@ class _BaseTrainer(abc.ABC):
             model.eval()
 
         meter = Meter()
-        
-        print('8888888888888888888888888')
 
         for data in data_loader:
-
-            print('ddddddddddd')
-
             start = time.time()
 
             if is_train:
