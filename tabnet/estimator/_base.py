@@ -554,7 +554,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         check_input_data(feats)
 
-         if len(feats) < self.batch_size:
+        if len(feats) < self.batch_size:
             self.batch_size = len(feats)
 
         data_loader = create_data_loader(
