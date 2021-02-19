@@ -434,7 +434,7 @@ def get_trainer(training_type='tabnet_training'):
         'tabnet_pretraining': TabNetPretrainer
     }
 
-    trainer = SUPPORTED_TRAINER.get(trainer_type)
+    trainer = SUPPORTED_TRAINER.get(training_type)
 
     if trainer is not None:
         return trainer()
@@ -442,5 +442,5 @@ def get_trainer(training_type='tabnet_training'):
         raise ValueError(
             '%r is not a valid trainer type.'
             'Use `sorted(tabnet.core.SUPPORTED_TRAINER.keys())` '
-            'to get valid options.' % trainer_type
+            'to get valid options.' % training_type
             )
