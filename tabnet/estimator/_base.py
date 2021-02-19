@@ -308,7 +308,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         
         return scheduler_objects
 
-    def pretrain(self, feats, batch_size=500, max_epochs=2000, 
+    def pretrain(self, feats, batch_size=512, max_epochs=2000, 
                  optimizer=None, optimizer_params=None, schedulers=None, 
                  scheduler_params=None, algorithm='tabnet_pretrainer'):
 
@@ -380,7 +380,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         del trainer
         return self
 
-    def fit(self, feats, targets, batch_size=1024, max_epochs=2000, 
+    def fit(self, feats, targets, batch_size=512, max_epochs=2000, 
             optimizer=None, optimizer_params=None, schedulers=None, scheduler_params=None,
             metrics=None, valid_feats=None, valid_targets=None, valid_metrics=None):
 
@@ -462,7 +462,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         Arguments:
             feats (numpy.ndarray, pd.DataFrame):
-                Input features
+                Input features.
 
         Returns:
             predictions (dict of numpy.ndarray)
@@ -535,6 +535,49 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         #                 predictions[t] = np.vstack((predictions[t], pred))
 
         # return predictions
+
+    def extract(self, feats, **kwargs):
+        """
+        Extract featgure representation.
+
+        Arguments:
+            feats (numpy.ndarray or pandas.DataFrame):
+                Input features.
+
+        Returns:
+            reprs (torch.Tensor):
+                Feature representation extracted from TabNetEncoder.
+
+        """
+        if self._model is None:
+            raise ValueError('Must to load or fit model before call `extract`.')
+
+        check_input_data(feats)
+
+         if len(feats) < self.batch_size:
+            self.batch_size = len(feats)
+
+        data_loader = create_data_loader(
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
+        )
+
+        self._model.eval()
+
+        reprs = None 
+
+        with torch.no_grad():
+            
+            for i, data in enumerate(data_loader):
+                outputs, _ = self._model(data.to(self.device))
+                
+                if i == 0:
+                    reprs = outputs.cpu().numpy()
+                else:
+                    reprs = np.vstack((reprs, outputs))
+
+        return reprs
+
+        
 
     def _schedulers_step(self):
         # TODO  ReduceLROnPlateau wrapper to monitor other criterions
@@ -656,6 +699,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
     @abc.abstractmethod
     def _build_criterion(self):
         raise NotImplementedError
+
 
 class BasePostProcessor(abc.ABC, torch.nn.Module):
     """
