@@ -598,6 +598,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         with torch.no_grad():
             
             for i, data in enumerate(data_loader):
+                print(data.size())
                 outputs, _ = self._model.tabnet_encoder(data.to(self.device))
                 outputs = torch.sum(torch.stack(outputs, dim=0), dim=0)
                 
