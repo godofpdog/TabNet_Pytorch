@@ -26,7 +26,7 @@ SUPPORTED_LOSSES = {
     'mse': MSELoss,
     'mae': MAELoss,
 
-    'tabnet': TabNetPretrainingLoss
+    'tabnet_pretraining': TabNetPretrainingLoss
 }
 
 

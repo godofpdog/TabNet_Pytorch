@@ -428,10 +428,10 @@ class TabNetPretrainer(_BaseTrainer):
         pass 
 
 
-def get_trainer(trainer_type='tabnet_trainer'):
+def get_trainer(training_type='tabnet_training'):
     SUPPORTED_TRAINER = {
-        'tabnet_trainer': TabNetTrainer,
-        'tabnet_pretrainer': TabNetPretrainer
+        'tabnet_training': TabNetTrainer,
+        'tabnet_pretraining': TabNetPretrainer
     }
 
     trainer = SUPPORTED_TRAINER.get(trainer_type)

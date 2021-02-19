@@ -339,7 +339,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
                 - Example:
                     algorithm_params = {
-                        'algorithm': 'tabnet',
+                        'algorithm': 'tabnet_pretraining',
                         'mask_rate': 0.2
                     }
 
@@ -348,7 +348,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         # the default algorithm
         if algorithm_params is None:
-            algorithm_params = {'algorithm': 'tabnet', 'mask_rate': 0.2}
+            algorithm_params = {'algorithm': 'tabnet_pretraining', 'mask_rate': 0.2}
 
         # build model
         if self._model is not None:
@@ -442,7 +442,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             valid_loader = None
         
         # init trainer
-        trainer = get_trainer(trainer_type='tabnet_trainer')
+        trainer = get_trainer(training_type='tabnet_training')
 
         # start training
         show_message('[TabNet] start training.', logger=self.logger, level='INFO')
