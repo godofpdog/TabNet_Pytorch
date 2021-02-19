@@ -78,3 +78,7 @@ class TabNetPretrainingLoss(Loss, PretrainingTaskMixin):
             loss = torch.mean(feats_loss / (num_reconstructions + self.epsilon))
 
         return loss
+
+
+class SwapDAELoss(Loss, PretrainingTaskMixin):
+    pass

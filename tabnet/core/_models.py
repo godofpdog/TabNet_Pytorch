@@ -578,7 +578,7 @@ class TabNetDecoder(nn.Module):
 
         for step in range(self.num_steps):
             o = self.feats_transformers[step](x[step])
-            o = self.fc_layers[step]
+            o = self.fc_layers[step](o)
             r = torch.add(o, r)
         
         return r
@@ -759,6 +759,8 @@ class _BasePretextModel(nn.Module, abc.ABC):
             None
 
         """
+        super(_BasePretextModel, self).__init__()
+
         if not isinstance(embedding_dims, int):
             raise TypeError('Type of argument `embedding_dims` must be `int`, but got `{}`'.format(type(embedding_dims)))
         
@@ -790,7 +792,7 @@ class _BasePretextModel(nn.Module, abc.ABC):
 
     def forward(self, x):
         """
-        Useless method.
+        Useless `method`.
         """
         return 
 
@@ -807,7 +809,7 @@ class TabNetPretextModel(_BasePretextModel):
     """
     def __init__(
         self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, num_shared=2, 
-        virtual_batch_size=128, momentum=0.02, mask_rate=0.2
+        virtual_batch_size=128, momentum=0.02, mask_rate=0.2, **kwargs
     ):
         """
         Initialization of `TabNetPretextModel` module.
@@ -824,7 +826,8 @@ class TabNetPretextModel(_BasePretextModel):
         )
 
     def pre_process(self, x):
-        return self.masker(x)
+        mask, masked_x = self.masker(x)
+        return mask, masked_x
 
     def post_process(self, x):
         return self.decoder(x)
@@ -854,7 +857,7 @@ class BinaryMasker(nn.Module):
         mask = torch.bernoulli(self.mask_rate * torch.ones(x.shape)).to(x.device)
         masked_x = torch.mul(1 - mask, x)
 
-        return masked_x, mask
+        return mask, masked_x 
 
 
 class PretrainModel(nn.Module):
@@ -894,7 +897,7 @@ class PretrainModel(nn.Module):
         if not isinstance(tabnet_encoder, TabNetEncoder):
             raise TypeError('Argument `tabnet_encoder` must be a `TabNetEncoder`, but got `{}`.'.format(type(tabnet_encoder)))
 
-        if not issubclass(pretext_model, _BasePretextModel):
+        if not issubclass(pretext_model.__class__, _BasePretextModel):
             raise TypeError('Class of argument `pretext_model` must be subclass of `_BasePretextModel`')
 
         self.embedding_encoder = embedding_encoder
@@ -906,9 +909,25 @@ class PretrainModel(nn.Module):
         """
         Define forward computation.
 
+        (1) embedding encoding -> embedding
+        (2) pretext pre-process -> pretext_output, pre-processed x
+        (3) tabnet encoding -> encoded_x
+        (4) pretext post-process -> the model output
+
+        Returns:
+            outputs (Tensors): 
+                Outputs of the pre-train model.
+
+            m_loss (Tensor): 
+                The Mask loss.
+            
+            pretext_output
+
         """
-        x = self.embedding_encoder(x)
-        self.pretext_model.pre_process(x)
-        encoded_x, m_loss = self.tabnet_encoder(embedded_x)
-        outputs = self.pretext_model.post_process()
+        embedded_x = self.embedding_encoder(x)
+        pretext_outputs, processed_x = self.pretext_model.pre_process(embedded_x)
+        encoded_x, m_loss = self.tabnet_encoder(processed_x)
+        outputs = self.pretext_model.post_process(encoded_x)
+
+        return outputs, m_loss, pretext_outputs
         

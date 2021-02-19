@@ -6,7 +6,7 @@ import torch
 import numpy as np 
 
 from ._models import (
-    TabNetEncoder, TabNetHead, EmbeddingEncoder, InferenceModel, PretrainModel
+    TabNetEncoder, TabNetHead, EmbeddingEncoder, InferenceModel, PretrainModel, TabNetPretextModel
 )
 
 
@@ -204,7 +204,7 @@ def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
 class ModelConverter:
 
     @classmethod
-    def to_pretrain(cls, model, algorithm, params):
+    def to_pretrain(cls, model, algorithm, training_params, model_configs):
         """
         Convert to `PretrainModel`.
 
@@ -215,8 +215,11 @@ class ModelConverter:
             algorithm (str):
                 Pre-training algorithm.
 
-            params (dict):
+            training_params (dict):
                 Training parameters of the pre-training algorithm.
+
+            model_configs (dict):
+                Model architecture configurations.
 
         Returns:
             (tanbet.core.PretrainModel):
@@ -225,21 +228,28 @@ class ModelConverter:
         """
         model_type = model.__class__
 
+        def _convert(model, training_params, model_configs):
+            embedding_encoder = getattr(model, 'embedding_encoder', None)
+            tabnet_encoder = getattr(model, 'tabnet_encoder', None)
+
+            # TODO support SwapDAE pre-training algorithm
+            pretext_model = TabNetPretextModel(**model_configs)
+
+            return PretrainModel(
+                embedding_encoder, tabnet_encoder, pretext_model
+            )
+
         if model_type == PretrainModel:
             return model 
 
         elif model_type == InferenceModel:
-            return _convert(model)
+            return _convert(model, training_params, model_configs)
 
         else:
             raise TypeError('Invalid model type.')
 
-
-        def _convert(model):
-            return model
-
     @classmethod
-    def to_inference(cls, model, configs):
+    def to_inference(cls, model, model_configs):
         """
         Convert to `InferenceModel`.
 
@@ -247,10 +257,7 @@ class ModelConverter:
             model (tabnet.core.model.PretrainModel or tabnet.core.model.InferenceModel)
                 A model object.
 
-            algorithm (str):
-                Pre-training algorithm.
-
-            configs (dict):
+            model_configs (dict):
                 Model architecture configurations.
 
         Returns:
@@ -259,15 +266,23 @@ class ModelConverter:
 
         """
         model_type = model.__class__
+
+        def _convert(model, model_configs):
+            embedding_encoder = getattr(model, 'embedding_encoder', None)
+            tabnet_encoder = getattr(model, 'tabnet_encoder', None)
+            tabnet_head = _TabNetHeadBuilder().build(
+                reprs_dims=model_configs['reprs_dims'], output_dims=model_configs['output_dims']
+            )
+
+            return InferenceModel(
+                embedding_encoder, tabnet_encoder, tabnet_head
+            )
         
         if model_type == InferenceModel:
             return model
         
         elif model_type == PretrainModel:
-            return _convert(model)
+            return _convert(model, model_configs)
 
         else:
             raise TypeError('Invalid model type.')
-
-        def _convert(model):
-            return model

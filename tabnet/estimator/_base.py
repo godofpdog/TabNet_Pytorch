@@ -13,8 +13,9 @@ from ..utils.logger import show_message
 from ..utils.utils import Meter
 from ..utils.validation import is_metric, check_input_data
 from ..metrics import get_metric, Metric
+from ..criterions import TabNetPretrainingLoss
 from ..core import (
-    build_model, load_weights, create_data_loader, InferenceModel, get_trainer
+    build_model, load_weights, create_data_loader, InferenceModel, get_trainer, ModelConverter
 )
 
 
@@ -307,17 +308,20 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         
         return scheduler_objects
 
-    def pretrain(self, feats, batch_size=1024, max_epochs=2000, 
+    def pretrain(self, feats, batch_size=500, max_epochs=2000, 
                  optimizer=None, optimizer_params=None, schedulers=None, 
                  scheduler_params=None, algorithm='tabnet_pretrainer'):
 
         """
         Pre-train on un-labeled dataset.
         """
+        # TODO get citeriion 
 
         # build model
         if self._model is not None:
-            
+            self._model = ModelConverter.to_pretrain(self._model, 'xx', 'xx', self._model_configs)
+            show_message('[TabNet] Convert to pretrain model.', logger=self.logger, level='INFO')
+
         
         self.batch_size = batch_size
 
@@ -338,19 +342,24 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         # init trainer
         trainer = get_trainer(trainer_type=algorithm)
 
+        print(trainer)
+
         # start training
         show_message('[TabNet] start training.', logger=self.logger, level='INFO')
 
         for epoch in range(max_epochs):
+            print('epoch = ', epoch)
             show_message(
                 '[TabNet] ******************** epoch : {} ********************'.format(epoch),
                 logger=self.logger, level='INFO'
             )
 
             train_meter = trainer.train_epoch(
-                self._model, train_loader, self._criterion, self._optimizer, 
+                self._model, train_loader, TabNetPretrainingLoss(), self._optimizer, 
                 self._post_processor, self._metrics, self.device
             )
+
+            # print(train_meter)
 
             self._update_meters(train_meter, 'train')
             

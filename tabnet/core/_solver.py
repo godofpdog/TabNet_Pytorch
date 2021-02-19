@@ -9,9 +9,9 @@ from ..utils.utils import Meter
 from ..utils.logger import show_message
 
 
-__all__ = [
-    'train_epoch', 'eval_epoch'
-]
+# __all__ = [
+#     'train_epoch', 'eval_epoch'
+# ]
 
 
 DIGITS = 6
@@ -25,7 +25,7 @@ class _BaseTrainer(abc.ABC):
     def __init__(self):
         pass
     
-    def train_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, device='cpu'):
+    def train_epoch(self, model, data_loader, criterion, optimizer, post_processor=None, metrics=None, device='cpu'):
         """
         Train on one epoch.
 
@@ -61,7 +61,7 @@ class _BaseTrainer(abc.ABC):
         """
         return self._run_epoch(model, data_loader, criterion, optimizer, post_processor, metrics, device, True)
     
-    def eval_epoch(self, model, data_loader, criterion, post_processor, metrics=None, device='cpu'):
+    def eval_epoch(self, model, data_loader, criterion, post_processor=None, metrics=None, device='cpu'):
         """
         Evaluate on one epoch.
 
@@ -91,7 +91,7 @@ class _BaseTrainer(abc.ABC):
         """
         return self._run_epoch(model, data_loader, criterion, None, post_processor, metrics, device, False)
     
-    def _run_epoch(self, model, data_loader, criterion, optimizer, post_processor, metrics=None, device='cpu', is_train=True):
+    def _run_epoch(self, model, data_loader, criterion, optimizer, post_processor=None, metrics=None, device='cpu', is_train=True):
 
         """
         Run one epoch.
@@ -102,7 +102,7 @@ class _BaseTrainer(abc.ABC):
             - Must to implement the abstract method `train_batch` and `eval_batch` for the specified training / evaluation strategy.
 
         """
-        self._check_model(model)
+        # self._check_model(model)
 
         if metrics is not None:
             assert criterion.num_tasks == len(metrics)
@@ -113,8 +113,12 @@ class _BaseTrainer(abc.ABC):
             model.eval()
 
         meter = Meter()
+        
+        print('8888888888888888888888888')
 
         for data in data_loader:
+
+            print('ddddddddddd')
 
             start = time.time()
 
@@ -369,7 +373,7 @@ class TabNetPretrainer(_BaseTrainer):
 
         return None
 
-    def train_batch(self, model, data, optimizer, device='cpu'):
+    def train_batch(self, model, data, criterion, optimizer, post_processor=None, metrics=None, device='cpu'):
         """
         Train on one batch.
 
@@ -379,6 +383,9 @@ class TabNetPretrainer(_BaseTrainer):
 
             data (torch.Tensor):
                 Batch data.
+
+            criterion (tabnet.criterions._Criterion):
+                A `_Criterion` object to compute the final loss value.
 
             optimizer:
                 A Pytorch optimizer.
@@ -395,15 +402,13 @@ class TabNetPretrainer(_BaseTrainer):
         optimizer.zero_grad()
 
         # process data
-        feats, targets = data
-        feats = feats.to(device)
-        targets = targets.to(device)
+        data = data.to(device)
 
         # forward
-        outputs, mask_loss = model(feats)
+        outputs, mask_loss, binary_mask = model(data)
 
         # calc loss
-        task_loss = criterion(outputs, targets)
+        task_loss = criterion(outputs, data, mask=binary_mask)
         total_loss = task_loss - mask_loss * 1e-3  # TODO as argument
 
         # update params
@@ -417,16 +422,16 @@ class TabNetPretrainer(_BaseTrainer):
             'mask_loss': mask_loss.item(),
         }
 
-        # calc metrics
-        if metrics is not None:
-            preds = post_processor(outputs)
-            self.update_metrics(preds, targets, metrics, updates)
+        print('======')
+        print('task_loss = ', task_loss.item())
+        print('mask_loss = ', mask_loss.item())
 
         return updates
 
     def eval_batch(self):
         """ Not needed. """
         pass 
+
 
 def get_trainer(trainer_type='tabnet_trainer'):
     SUPPORTED_TRAINER = {
