@@ -240,7 +240,7 @@ class ModelConverter:
             # TODO support SwapDAE pre-training algorithm
             algorithm = algorithm_params['algorithm']
 
-            if algorithm == tabnet:
+            if algorithm == 'tabnet':
                 try:
                     model_configs['mask_rate'] = algorithm_params['mask_rate']
                 except Exception as e:
