@@ -176,10 +176,12 @@ class _InferenceModelBuilder(_BaseBuilder):
 
 
 class _PretrainModelBuilder(_BaseBuilder):
+    _SUPPORTED_ALGORITHM = ['tabnet']
+
     def __init__(self, weights_path):
         super(_PretrainModelBuilder, self).__init__(weights_path)
 
-    def _build(self):
+    def _build(self, algorithm_params):
         pass 
 
 
@@ -204,7 +206,7 @@ def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
 class ModelConverter:
 
     @classmethod
-    def to_pretrain(cls, model, algorithm, training_params, model_configs):
+    def to_pretrain(cls, model, algorithm_params, model_configs):
         """
         Convert to `PretrainModel`.
 
@@ -212,11 +214,14 @@ class ModelConverter:
             model (tabnet.core.model.PretrainModel or tabnet.core.model.InferenceModel)
                 A model object.
 
-            algorithm (str):
-                Pre-training algorithm.
+            algorithm_params (dict):
+                Parameters of the training algorithm (including the `traning algorithm`).
 
-            training_params (dict):
-                Training parameters of the pre-training algorithm.
+                - Example:
+                    algorithm_params = {
+                        'algorithm': 'tabnet',
+                        'mask_rate': 0.2
+                    }
 
             model_configs (dict):
                 Model architecture configurations.
@@ -228,11 +233,21 @@ class ModelConverter:
         """
         model_type = model.__class__
 
-        def _convert(model, training_params, model_configs):
+        def _convert(model, algorithm_params, model_configs):
             embedding_encoder = getattr(model, 'embedding_encoder', None)
             tabnet_encoder = getattr(model, 'tabnet_encoder', None)
 
             # TODO support SwapDAE pre-training algorithm
+            algorithm = algorithm_params['algorithm']
+
+            if algorithm == tabnet:
+                try:
+                    model_configs['mask_rate'] = algorithm_params['mask_rate']
+                except Exception as e:
+                    print(e)
+            else:
+                raise ValueError('Invalid training algorithm.')
+
             pretext_model = TabNetPretextModel(**model_configs)
 
             return PretrainModel(
@@ -243,7 +258,7 @@ class ModelConverter:
             return model 
 
         elif model_type == InferenceModel:
-            return _convert(model, training_params, model_configs)
+            return _convert(model, algorithm_params, model_configs)
 
         else:
             raise TypeError('Invalid model type.')

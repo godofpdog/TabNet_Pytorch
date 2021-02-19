@@ -13,7 +13,7 @@ from ..utils.logger import show_message
 from ..utils.utils import Meter
 from ..utils.validation import is_metric, check_input_data
 from ..metrics import get_metric, Metric
-from ..criterions import TabNetPretrainingLoss
+from ..criterions import get_loss
 from ..core import (
     build_model, load_weights, create_data_loader, InferenceModel, get_trainer, ModelConverter
 )
@@ -313,13 +313,46 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                  scheduler_params=None, algorithm_params=None):
 
         """
-        Pre-train on un-labeled dataset.
+        SSL pre-training on un-labeled dataset.
+
+        Arguments:
+            feats (numpy.ndarray or pandas.DataFrame):
+                Input features.
+
+            batch_size (int):
+                Batch size.
+
+            max_epochs (int):
+                Maximum of training epochs.
+
+            optimizer:
+                A Pytorch optimizer.
+
+            schedulers:
+                Pytorch scheduler(s).
+
+            scheduler_params (dict or list of dict):
+                Parameters of the training scheduler(s).
+
+            algorithm_params (dict):
+                Parameters of the training algorithm (including the `traning algorithm`).
+
+                - Example:
+                    algorithm_params = {
+                        'algorithm': 'tabnet',
+                        'mask_rate': 0.2
+                    }
+
         """
         # TODO get citeriion 
 
+        # the default algorithm
+        if algorithm_params is None:
+            algorithm_params = {'algorithm': 'tabnet', 'mask_rate': 0.2}
+
         # build model
         if self._model is not None:
-            self._model = ModelConverter.to_pretrain(self._model, 'xx', 'xx', self._model_configs)
+            self._model = ModelConverter.to_pretrain(self._model, algorithm_params, self._model_configs)
             show_message('[TabNet] Convert to pretrain model.', logger=self.logger, level='INFO')
 
         
@@ -339,27 +372,24 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
         )
 
-        # init trainer
+        # setup trainer and criterion
+        algorithm = algorithm_params['algorithm']
         trainer = get_trainer(trainer_type=algorithm)
-
-        print(trainer)
+        criterion = get_loss(algorithm).to(self.device)
 
         # start training
         show_message('[TabNet] start training.', logger=self.logger, level='INFO')
 
         for epoch in range(max_epochs):
-            print('epoch = ', epoch)
             show_message(
                 '[TabNet] ******************** epoch : {} ********************'.format(epoch),
                 logger=self.logger, level='INFO'
             )
 
             train_meter = trainer.train_epoch(
-                self._model, train_loader, TabNetPretrainingLoss(), self._optimizer, 
+                self._model, train_loader, criterion, self._optimizer, 
                 self._post_processor, self._metrics, self.device
             )
-
-            # print(train_meter)
 
             self._update_meters(train_meter, 'train')
             

@@ -12,6 +12,10 @@ from ._regression import (
     MAELoss
 )
 
+from ._pretraining import (
+    TabNetPretrainingLoss
+)
+
 from ._base import _Criterion
 
 
@@ -20,7 +24,9 @@ SUPPORTED_LOSSES = {
     'ce': MutiClassCrossEntropyLoss,
 
     'mse': MSELoss,
-    'mae': MAELoss
+    'mae': MAELoss,
+
+    'tabnet': TabNetPretrainingLoss
 }
 
 
