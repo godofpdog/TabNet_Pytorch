@@ -353,9 +353,10 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         # build model
         if self._model is not None:
-            self._model = ModelConverter.to_pretrain(self._model, algorithm_params, self._model_configs)
+            self._model = ModelConverter.to_pretrain(self._model, algorithm_params, self._model_configs, self.device)
             show_message('[TabNet] Convert to pretrain model.', logger=self.logger, level='INFO')
-
+        else:
+            raise RuntimeError('Must to build model before call `pretrain`.')
         
         self.batch_size = batch_size
 
@@ -418,6 +419,13 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         """
         Fit TabNet model on specified tasks.
         """
+
+        # build model
+        if self._model is not None:
+            self._model = ModelConverter.to_pretrain(self._model, self._model_configs, self.device)
+            show_message('[TabNet] Convert to inference model.', logger=self.logger, level='INFO')
+        else:
+            raise RuntimeError('Must to build model before call `fit`.')
 
         self.batch_size = batch_size
 

@@ -206,7 +206,7 @@ def build_model(model_type, weights_path=None, is_cuda=False, **kwargs):
 class ModelConverter:
 
     @classmethod
-    def to_pretrain(cls, model, algorithm_params, model_configs):
+    def to_pretrain(cls, model, algorithm_params, model_configs, device):
         """
         Convert to `PretrainModel`.
 
@@ -225,6 +225,9 @@ class ModelConverter:
 
             model_configs (dict):
                 Model architecture configurations.
+
+            device (str):
+                Computation device.
 
         Returns:
             (tanbet.core.PretrainModel):
@@ -255,16 +258,16 @@ class ModelConverter:
             )
 
         if model_type == PretrainModel:
-            return model 
+            return model.to(device)
 
         elif model_type == InferenceModel:
-            return _convert(model, algorithm_params, model_configs)
+            return _convert(model, algorithm_params, model_configs).to(device)
 
         else:
             raise TypeError('Invalid model type.')
 
     @classmethod
-    def to_inference(cls, model, model_configs):
+    def to_inference(cls, model, model_configs, device):
         """
         Convert to `InferenceModel`.
 
@@ -274,6 +277,9 @@ class ModelConverter:
 
             model_configs (dict):
                 Model architecture configurations.
+
+            device (str):
+                Computation device.
 
         Returns:
             (tanbet.core.InferenceModel):
@@ -294,10 +300,10 @@ class ModelConverter:
             )
         
         if model_type == InferenceModel:
-            return model
+            return model.to(device)
         
         elif model_type == PretrainModel:
-            return _convert(model, model_configs)
+            return _convert(model, model_configs).to(device)
 
         else:
             raise TypeError('Invalid model type.')
