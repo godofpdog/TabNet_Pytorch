@@ -18,7 +18,10 @@ from ..core import (
     build_model, load_weights, create_data_loader, InferenceModel, get_trainer, ModelConverter
 )
 
-# TODO the inference batch size issue
+# TODO 
+# (1) the inference batch size issue
+# (2) pre-train model supported explain
+
 
 class BaseTabNet(BaseEstimator, abc.ABC):
     def __init__(
@@ -422,7 +425,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         # build model
         if self._model is not None:
-            self._model = ModelConverter.to_pretrain(self._model, self._model_configs, self.device)
+            self._model = ModelConverter.to_inference(self._model, self._model_configs, self.device)
             show_message('[TabNet] Convert to inference model.', logger=self.logger, level='INFO')
         else:
             raise RuntimeError('Must to build model before call `fit`.')
@@ -619,7 +622,6 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         return reprs
 
         
-
     def _schedulers_step(self):
         # TODO  ReduceLROnPlateau wrapper to monitor other criterions
 
