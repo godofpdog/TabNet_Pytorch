@@ -545,6 +545,13 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         # TODO update params
         # TODO for embedding encoding
 
+        # build model
+        if self._model is not None:
+            self._model = ModelConverter.to_inference(self._model, self._model_configs, self.device)
+            show_message('[TabNet] Convert to inference model.', logger=self.logger, level='INFO')
+        else:
+            raise RuntimeError('Must to build model before call `fit`.')
+
         self._check_eval_model(self._model)
 
         if len(feats) < self.batch_size:
@@ -565,8 +572,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
                 return m_explain, masks
 
-                print(m_explain.size())
-                print(masks)
+
         #         processed_outouts = self._post_processor(outputs)
                 
         #         for t in range(len(self.output_dims)):

@@ -268,7 +268,7 @@ class ModelConverter:
 
     @classmethod
     def to_inference(cls, model, model_configs, device):
-        """
+        """  
         Convert to `InferenceModel`.
 
         Arguments:
