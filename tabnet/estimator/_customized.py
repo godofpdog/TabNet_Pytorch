@@ -4,7 +4,7 @@ from ._base import BaseTabNet, BasePostProcessor
 from ..criterions import create_criterion
 
 
-class CostumizedEstimator(BaseTabNet):
+class CustomizedEstimator(BaseTabNet):
     """
     The interface to define a customized estimator by registering:
     (1) Valid loss object.
@@ -14,7 +14,7 @@ class CostumizedEstimator(BaseTabNet):
 
         # init `CostumizedEstimator` object.
 
-        my_model = CostumizedEstimator(
+        my_model = CustomizedEstimator(
             input_dims=39, output_dims=[1], reprs_dims=8, atten_dims=8, 
             num_steps=4, num_indep=2, num_shared=1, virtual_batch_size=256
         )
@@ -28,7 +28,7 @@ class CostumizedEstimator(BaseTabNet):
 
     def __init__(self, input_dims, output_dims, **kwargs):
         """
-        Initialization of `CostumizedEstimator`.
+        Initialization of `CustomizedEstimator`.
 
         Arguments:
             input_dims (int):
@@ -41,7 +41,7 @@ class CostumizedEstimator(BaseTabNet):
             None
 
         """
-        super(CostumizedEstimator, self).__init__(input_dims, output_dims, **kwargs):
+        super(CustomizedEstimator, self).__init__(input_dims, output_dims, **kwargs):
 
     def register_loss(self, losses, weights=1):
         criterion = create_criterion(losses, weights)
