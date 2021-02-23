@@ -1,7 +1,7 @@
 """ Implementations of regression metrics. """
 
 from ._base import Metric
-from ..base import RegressionTaskMixin
+from ..mixin import RegressionTaskMixin
 from sklearn import metrics
 
 

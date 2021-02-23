@@ -2,7 +2,7 @@
 
 import torch
 from ._base import Loss
-from ..base import RegressionTaskMixin
+from ..mixin import RegressionTaskMixin
 
 
 class MSELoss(Loss, RegressionTaskMixin):

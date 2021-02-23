@@ -19,7 +19,7 @@ from ..core import (
 )
 
 # TODO 
-# (1) the inference batch size issue
+# (1) the inference batch size issue (V)
 # (2) pre-train model supported explain
 
 
@@ -514,8 +514,8 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         self._check_post_processor(self._post_processor)
         check_input_data(feats)
 
-        # if len(feats) < self.batch_size:
-        #     self.batch_size = len(feats)
+        if len(feats) < self.batch_size:
+            self.batch_size = len(feats)
         # self.batch_size = len(feats)
 
         data_loader = create_data_loader(

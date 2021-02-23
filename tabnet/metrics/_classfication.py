@@ -1,7 +1,7 @@
 """ Implementations of classification metrics. """
 
 from ._base import Metric
-from ..base import ClassificationTaskMixin
+from ..mixin import ClassificationTaskMixin
 from sklearn import metrics
 
 

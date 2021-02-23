@@ -2,7 +2,7 @@
 
 import torch
 from ._base import Loss
-from ..base import ClassificationTaskMixin
+from ..mixin import ClassificationTaskMixin
 
 
 class BinaryCrossEntropyLoss(Loss, ClassificationTaskMixin):

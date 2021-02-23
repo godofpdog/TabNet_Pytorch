@@ -5,6 +5,8 @@ The module `tabnet.estimatior` i
 
 from ._regression import TabNetRegressor
 from ._classifier import TabNetClassifier
+from ._customized import CustomizedEstimator
+from ._base import BaseTabNet, BasePostProcessor
 
 
 # TODO alias
@@ -12,5 +14,8 @@ from ._classifier import TabNetClassifier
 
 __all__ = [
     'TabNetRegressor',
-    'TabNetClassifier'
+    'TabNetClassifier',
+    'CustomizedEstimator',
+    'BaseTabNet',
+    'BasePostProcessor'
 ]

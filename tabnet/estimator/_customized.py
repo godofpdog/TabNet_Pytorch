@@ -41,7 +41,7 @@ class CustomizedEstimator(BaseTabNet):
             None
 
         """
-        super(CustomizedEstimator, self).__init__(input_dims, output_dims, **kwargs):
+        super(CustomizedEstimator, self).__init__(input_dims, output_dims, **kwargs)
 
     def register_loss(self, losses, weights=1):
         criterion = create_criterion(losses, weights)
@@ -49,13 +49,20 @@ class CustomizedEstimator(BaseTabNet):
 
         if criterion.num_tasks != num_tasks:
             raise ValueError('Number of loss functions must match the network architecture (output_dms).')
-
-        return self
-
-    def register_postprocessor(self, post_processors):
-        if not issubclass(post_processors.__class__, BasePostProcessor):
-            raise TypeError('Type of `post_processors` must be a subclass of `BasePostProcessor`.')
         
-        self._post_processor = post_processors
+        self._criterion = criterion
         return self
+
+    def register_postprocessor(self, post_processor):
+        if not issubclass(post_processor.__class__, BasePostProcessor):
+            raise TypeError('Type of `post_processor` must be a subclass of `BasePostProcessor`.')
+        
+        self._post_processor = post_processor
+        return self
+
+    def _build_criterion(self):
+        return 
+
+    def _build_post_processor(self):
+        return
         

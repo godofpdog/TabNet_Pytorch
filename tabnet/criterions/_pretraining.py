@@ -2,7 +2,7 @@
 
 import torch
 from ._base import Loss
-from ..base import PretrainingTaskMixin
+from ..mixin import PretrainingTaskMixin
 
 
 class TabNetPretrainingLoss(Loss, PretrainingTaskMixin):
