@@ -40,7 +40,12 @@ class GhostBatchNorm(nn.Module):
         self.bn = nn.BatchNorm1d(self.input_dims, momentum=momentum)
 
     def forward(self, x):
-        chunks = x.chunk(x.size(0) // self.virtual_batch_size, 0)
+        n_chunks = x.size(0) // self.virtual_batch_size
+
+        if n_chunks == 0:
+            n_chunks = 1
+
+        chunks = x.chunk(n_chunks, 0)
         return torch.cat([self.bn(x_) for x_ in chunks], dim=0)
 
 
