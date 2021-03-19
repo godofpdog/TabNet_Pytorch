@@ -153,48 +153,42 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         return None 
 
-    def build(self, path, model_type='inference_model'):
+    def build(self, path):
         """
         Build network architecture. 
 
         Arguments
             path (str): 
-                Weights path.
-
-            model_type (str): 
-                Model type.
+                Model path (dir contains model configuraton and weights).
 
         Returns:
             self
 
         """
-        if not model_type in ('inference_model', 'pretrain_model'):
-            raise ValueError('Not supported model type (`inference` or `pretrain`)')
-        
-        if self._model is None:
-            self._model = build_model(
-                model_type=model_type, weights_path=path, is_cuda=self.is_cuda, **self._model_configs
+        if self._model is not None:
+            show_message(
+                '[TabNet] Model architecture has already been built.',
+                logger=self.logger, level='WARNING'
             )
+            return
 
         try:
-            load_weights(self._model, path)
+            with open(os.path.join(path, 'model_config.json')) as f:
+                _model_configs = json.load(f)
 
-            show_message(
-                '[TabNet] Sucessfully load weights from {}'.format(path),
-                logger=self.logger, level='INFO'
+            self._model = build_model(
+                model_type='inference_model', weights_path=os.path.join(path, 'weights.pt'), is_cuda=self.is_cuda, **_model_configs
             )
-                
-        except Exception as e:
+
+        except Exception as :
             show_message(
-                '[TabNet] Failed to load model from {}'.format(path),
+                '[TabNet] Failed to load saved model. Will build model architecture by given setting. \n{}'.format(e),
                 logger=self.logger, level='WARNING'
             )
 
-            show_message(
-                e,
-                logger=self.logger, level='DEBUG'
+            self._model = build_model(
+                model_type='inference_model', weights_path=None, is_cuda=self.is_cuda, **self._model_configs
             )
-
         
         return self
 
@@ -240,7 +234,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
             show_message(
                 '[TabNet] Successfully save model configuration and weights to {}.'.format(path),
-                logger=self.logger, level='WARNING'
+                logger=self.logger, level='INFO'
             )
         
         except Exception as e:
