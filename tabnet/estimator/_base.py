@@ -180,7 +180,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 model_type='inference_model', weights_path=os.path.join(path, 'weights.pt'), is_cuda=self.is_cuda, **_model_configs
             )
 
-        except Exception as :
+        except Exception as e:
             show_message(
                 '[TabNet] Failed to load saved model. Will build model architecture by given setting. \n{}'.format(e),
                 logger=self.logger, level='WARNING'
