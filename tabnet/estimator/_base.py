@@ -5,11 +5,10 @@ import abc
 import json
 import torch
 import numpy as np 
-from sklearn.base import BaseEstimator
-from torch.optim.optimizer import Optimizer
-from torch.optim.optimizer import Optimizer
 from torch.optim import Adam
+from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
+from sklearn.base import BaseEstimator
 
 from ..utils.logger import show_message
 from ..utils.utils import Meter, mkdir
@@ -130,6 +129,8 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         self._post_processor = None
         self._meters = {'train': Meter(), 'valid': Meter()}
 
+        self.INFER_BATCH_SIZE = 512
+
     def _get_model_configs(self):
         """
         Model configurations to build network architecture.
@@ -190,22 +191,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 model_type='inference_model', weights_path=None, is_cuda=self.is_cuda, **self._model_configs
             )
         
-        return self
-
-    def seve_weights(self, path):
-        try:
-            torch.save(self._model.state_dict(), path)
-            show_message(
-                '[TabNet] Sucessfully save weights to {}.'.format(path),
-                logger=self.logger, level='INFO'
-            )
-        except Exception as e:
-            show_message(
-                '[TabNet] Failed to save weights. \n {}'.format(e),
-                logger=self.logger, level='WARNING'
-            )
-
-        return None  
+        return self  
 
     def save(self, path):
         """
@@ -449,7 +435,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         del trainer
         return self
 
-    def fit(self, feats, targets, batch_size=512, max_epochs=2000, 
+    def fit(self, feats, targets, batch_size=None, max_epochs=2000, 
             optimizer=None, optimizer_params=None, schedulers=None, scheduler_params=None,
             metrics=None, valid_feats=None, valid_targets=None, valid_metrics=None):
 
@@ -464,7 +450,8 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         else:
             raise RuntimeError('Must to build model before call `fit`.')
 
-        self.batch_size = batch_size
+        if batch_size is None:
+            batch_size = self.batch_size
 
         # setup metrics
         self._metrics = self.set_metrics(metrics)
@@ -477,12 +464,12 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         # create data loaders
         train_loader = create_data_loader(
-            feats, targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+            feats, targets, batch_size, self.is_shuffle, self.num_workers, self.pin_memory
         )
 
         if valid_feats is not None and valid_targets is not None:
             valid_loader = create_data_loader(
-                valid_feats, valid_targets, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+                valid_feats, valid_targets, batch_size, self.is_shuffle, self.num_workers, self.pin_memory
             )
         else:
             valid_loader = None
@@ -544,16 +531,18 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             predictions (dict of numpy.ndarray)
 
         """
-        self._check_eval_model(self._model)
+        # convert model
+        if self._model is not None:
+            self._model = ModelConverter.to_inference(self._model, self._model_configs, self.device)
+            show_message('[TabNet] Convert to inference model.', logger=self.logger, level='INFO')
+        else:
+            raise RuntimeError('Must to build model before call `fit`.')
+
         self._check_post_processor(self._post_processor)
         check_input_data(feats)
 
-        if len(feats) < self.batch_size:
-            self.batch_size = len(feats)
-        # self.batch_size = len(feats)
-
         data_loader = create_data_loader(
-            feats, None, len(feats), False, self.num_workers, self.pin_memory, is_drop_last=False
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
         )
 
         self._model.eval()
@@ -576,48 +565,44 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         return predictions
     
     def explain(self, feats, **kwargs):
-        # TODO update params
         # TODO for embedding encoding
+        # TODO global importances
 
-        # build model
+        # convert model
         if self._model is not None:
             self._model = ModelConverter.to_inference(self._model, self._model_configs, self.device)
             show_message('[TabNet] Convert to inference model.', logger=self.logger, level='INFO')
         else:
             raise RuntimeError('Must to build model before call `fit`.')
 
-        self._check_eval_model(self._model)
-
-        if len(feats) < self.batch_size:
-            self.batch_size = len(feats)
-
         data_loader = create_data_loader(
-            feats, None, self.batch_size, False, self.num_workers, self.pin_memory
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
         )
 
         self._model.eval()
         
-        predictions = dict()
+        output_masks = dict()
+        instance_importances = None 
 
         with torch.no_grad():
 
             for i, data in enumerate(data_loader):
-                m_explain, masks = self._model.explain(data.to(self.device))
+                importances, masks = self._model.explain(data.to(self.device))
+                importances = importances.cpu().numpy()
 
-                return m_explain, masks
+                if i == 0:
+                    instance_importances = importances
 
+                    for k, v in masks.items():
+                        output_masks[k] = v 
 
-        #         processed_outouts = self._post_processor(outputs)
-                
-        #         for t in range(len(self.output_dims)):
-        #             pred = processed_outouts[t].cpu().numpy()
+                else:
+                    instance_importances = np.vstack((instance_importances, importances))
+                    
+                    for k, v in masks.items():
+                        output_masks[k] = np.vstack((output_masks[k], v))
 
-        #             if i == 0:
-        #                 predictions[t] = pred
-        #             else:
-        #                 predictions[t] = np.vstack((predictions[t], pred))
-
-        # return predictions
+        return instance_importances, output_masks
 
     def extract(self, feats, **kwargs):
         """
@@ -637,11 +622,8 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
         check_input_data(feats)
 
-        # if len(feats) < self.batch_size:
-        #     self.batch_size = len(feats)
-
         data_loader = create_data_loader(
-            feats, None, len(feats), False, self.num_workers, self.pin_memory, is_drop_last=False
+            feats, None, self.batch_size, False, self.num_workers, self.pin_memory, is_drop_last=False
         )
 
         self._model.eval()
@@ -743,19 +725,6 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 scorers.append(_set_func(metric))
 
         return scorers
-
-    @classmethod
-    def _check_eval_model(cls, model):
-        """
-        Eval model verification.
-        """
-        if model is None:
-            raise RuntimeError('Must to build model first.')
-
-        elif not isinstance(model, InferenceModel):
-            raise TypeError(
-                    'Invalid model type, use `convert_to_inference_model`.'
-            ) 
 
     @classmethod
     def _check_post_processor(cla, post_processor):
