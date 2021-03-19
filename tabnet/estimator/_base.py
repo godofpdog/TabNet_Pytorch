@@ -594,13 +594,13 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                     instance_importances = importances
 
                     for k, v in masks.items():
-                        output_masks[k] = v 
+                        output_masks[k] = v.cpu().numpy()
 
                 else:
                     instance_importances = np.vstack((instance_importances, importances))
                     
                     for k, v in masks.items():
-                        output_masks[k] = np.vstack((output_masks[k], v))
+                        output_masks[k] = np.vstack((output_masks[k], v.cpu().numpy()))
 
         return instance_importances, output_masks
 
