@@ -1,6 +1,8 @@
 """ Base classes of the module `tabnet.estimator`. """
 
+import os 
 import abc
+import json
 import torch
 import numpy as np 
 from sklearn.base import BaseEstimator
@@ -210,6 +212,43 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             )
 
         return None  
+
+    def save(self, path):
+        """
+        Save weights and estimator configurations.
+
+        Arguments:
+            path (str):
+                Save path.
+
+        Returns:
+            None
+
+        """
+        if self._model is not None:
+            self._model = ModelConverter.to_inference(self._model, self._model_configs, self.device)
+            show_message('[TabNet] Convert to inference model.', logger=self.logger, level='INFO')
+        else:
+            raise RuntimeError('There is no model to save. Must to build and fit model before call `save`.')
+
+        try:
+            torch.save(self._model.state_dict(), os.path.join(path, 'weights.pt'))
+            
+            with open(os.path.join(path, 'model_config.json'), 'w') as f:
+                json.dump(self._model_configs, f) 
+
+            show_message(
+                '[TabNet] Successfully save model configuration and weights to {}.'.format(path),
+                logger=self.logger, level='WARNING'
+            )
+        
+        except Exception as e:
+            show_message(
+                '[TabNet] Failed to save model. \n{}'.format(e),
+                logger=self.logger, level='WARNING'
+            )
+
+        return 
 
     def show_model(self):
         if self._model is not None:
@@ -626,8 +665,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                     reprs = np.vstack((reprs, outputs))
 
         return reprs
-
-        
+  
     def _schedulers_step(self):
         # TODO  ReduceLROnPlateau wrapper to monitor other criterions
 

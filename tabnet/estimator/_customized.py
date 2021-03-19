@@ -37,7 +37,7 @@ class CustomizedEstimator(BaseTabNet):
             output_dims (int or list of int): 
                 Dimension of output logits (list for muti-task).
 
-        Returns:
+        Returns: 
             None
 
         """
