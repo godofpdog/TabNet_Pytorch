@@ -12,7 +12,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 
 from ..utils.logger import show_message
-from ..utils.utils import Meter
+from ..utils.utils import Meter, mkdir
 from ..utils.validation import is_metric, check_input_data
 from ..metrics import get_metric, Metric
 from ..criterions import get_loss
@@ -232,6 +232,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
             raise RuntimeError('There is no model to save. Must to build and fit model before call `save`.')
 
         try:
+            mkdir(path)
             torch.save(self._model.state_dict(), os.path.join(path, 'weights.pt'))
             
             with open(os.path.join(path, 'model_config.json'), 'w') as f:
@@ -247,7 +248,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 '[TabNet] Failed to save model. \n{}'.format(e),
                 logger=self.logger, level='WARNING'
             )
-
+        
         return 
 
     def show_model(self):
