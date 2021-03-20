@@ -250,7 +250,7 @@ class ModelConverter:
                     pretext_model = TabNetPretextModel(**model_configs)
                 except Exception as e:
                     print(e)
-            elif algorithm == 'swap_dae_pretraining':
+            elif algorithm in ('swap_dae', 'swapdae', 'swap_dae_pretraining'):
                 try:
                     pretext_model = SwapDAEPreTextModel(**model_configs)
                 except Exception as e:
