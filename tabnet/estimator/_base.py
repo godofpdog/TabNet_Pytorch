@@ -673,7 +673,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 if i == 0:
                     reprs = outputs.cpu().numpy()
                 else:
-                    reprs = np.vstack((reprs, outputs))
+                    reprs = np.vstack((reprs, outputs.cpu().numpy()))
 
         return reprs
   
