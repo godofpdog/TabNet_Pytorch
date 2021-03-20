@@ -507,8 +507,8 @@ class SwapDAEPreTrainer(_BaseTrainer):
 
         # process data
         feats, targets = data
-        feats = feats.to(device)
-        targets = targets.to(device)
+        feats = feats.to(device).float()
+        targets = targets.to(device).float()
 
         # forward
         preds, mask_loss, _ = model(feats)
