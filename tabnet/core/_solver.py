@@ -410,7 +410,7 @@ class SwapDAEPreTrainer(_BaseTrainer):
     def train_epoch(self, model, dataset, criterion, optimizer,
                     post_processor=None, metrics=None, device='cpu', 
                     batch_size=512, shuffle=True, pin_memory=True, num_workers=2):
-                     
+
         return self._run_epoch(
             model, dataset, criterion, optimizer,
             post_processor, metrics, device, True,
@@ -446,7 +446,8 @@ class SwapDAEPreTrainer(_BaseTrainer):
         # prepare data 
         dataset.swap()
         data_loader =  DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=2
+            dataset, batch_size=batch_size, shuffle=shuffle, 
+            pin_memory=pin_memory, num_workers=num_workers
         )
 
         # TODO num_workers
@@ -500,7 +501,36 @@ class SwapDAEPreTrainer(_BaseTrainer):
                 The update info.
 
         """
+        # clear gradient
+        optimizer.zero_grad()
+
+        # process data
+        data = data.to(device)
+
+        # forward
+        outputs, mask_loss, binary_mask = model(data)
+
+        # calc loss
+        task_loss = criterion(outputs, data, mask=binary_mask)
+        total_loss = task_loss - mask_loss * 1e-3  # TODO as argument
+
+        # update params
+        total_loss.backward()
+        optimizer.step()
+
+        # training info
+        updates = {
+            'total_loss': total_loss.item(),
+            'task_loss': task_loss.item(),
+            'mask_loss': mask_loss.item(),
+        }
+
+        return updates
+
+    def eval_batch(self):
+        """ Not needed. """
         pass 
+
 
 def get_trainer(training_type='tabnet_training'):
     SUPPORTED_TRAINER = {
