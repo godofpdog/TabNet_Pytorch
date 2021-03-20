@@ -812,7 +812,7 @@ class SwapDAEPreTextModel(_BasePretextModel):
     def __init__(
         self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, num_shared=2, 
         virtual_batch_size=128, momentum=0.02, **kwargs):
-        super(SwapDAEPreTextModel, self).__init__()
+        super(SwapDAEPreTextModel, self).__init__(reprs_dims)
         self.decoder = TabNetDecoder(
             input_dims, reprs_dims, num_steps, num_indep, num_shared, virtual_batch_size, momentum
         )
