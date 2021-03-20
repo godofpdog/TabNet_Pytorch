@@ -84,7 +84,7 @@ def _swap(input_df, prob=0.15):
     return swap_df
 
 
-class SwapNoiseDataset(data.Dataset):
+class SwapNoiseDataset(Dataset):
     def __init__(self, raw_df, swap_rate=0.15):
         super(SwapNoiseDataset, self).__init__()
         self.swap_rate = swap_rate
