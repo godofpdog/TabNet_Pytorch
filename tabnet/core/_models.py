@@ -818,7 +818,7 @@ class SwapDAEPreTextModel(_BasePretextModel):
         )
 
     def pre_process(self, x):
-        return _, x
+        return None, x
 
     def post_process(self, x):
         return self.decoder(x)
