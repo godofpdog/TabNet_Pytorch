@@ -7,8 +7,7 @@ from ..mixin import PretrainingTaskMixin
 
 class TabNetPretrainingLoss(Loss, PretrainingTaskMixin):
     """
-
-
+    SSL pre-training loss described in TabNet paper.
     """
     def __init__(self, population_std=None, epsilon=1e-9):
         super(TabNetPretrainingLoss, self).__init__()
@@ -81,4 +80,9 @@ class TabNetPretrainingLoss(Loss, PretrainingTaskMixin):
 
 
 class SwapDAELoss(Loss, PretrainingTaskMixin):
-    pass
+    def __init__(self):
+        super(SwapDAELoss, self).__init__()
+        self._loss_func = torch.nn.MSELoss()
+
+    def score_func(self, preds, targets):
+        return self._loss_func(preds, targets)

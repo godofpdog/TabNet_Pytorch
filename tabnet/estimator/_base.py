@@ -5,6 +5,7 @@ import abc
 import json
 import torch
 import numpy as np 
+import pandas as pd
 from torch.optim import Adam
 from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
@@ -15,6 +16,7 @@ from ..utils.utils import Meter, mkdir
 from ..utils.validation import is_metric, check_input_data
 from ..metrics import get_metric, Metric
 from ..criterions import get_loss
+from ..core._data import SwapNoiseDataset
 from ..core import (
     build_model, load_weights, create_data_loader, InferenceModel, get_trainer, ModelConverter
 )
@@ -332,7 +334,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         
         return scheduler_objects
 
-    def pretrain(self, feats, batch_size=512, max_epochs=2000, 
+    def pretrain(self, feats, batch_size=None, max_epochs=2000, 
                  optimizer=None, optimizer_params=None, schedulers=None, 
                  scheduler_params=None, algorithm_params=None):
 
@@ -381,26 +383,41 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         else:
             raise RuntimeError('Must to build model before call `pretrain`.')
         
-        self.batch_size = batch_size
+        if batch_size is None:
+            batch_size = self.batch_size
 
-        # setup metrics
         self._metrics = self.set_metrics(None)
-
-        # init optimizer
         self._optimizer = self._init_optimizer(optimizer, optimizer_params)
-
-        # init schedulers
         self._schedulers = self._init_schedulers(schedulers, scheduler_params)
 
-        # create data loaders
-        train_loader = create_data_loader(
-            feats, None, self.batch_size, self.is_shuffle, self.num_workers, self.pin_memory
-        )
-
         # setup trainer and criterion
-        algorithm = algorithm_params['algorithm']
+        algorithm_name = algorithm_params['algorithm']
+
+        if algorithm_name == 'tabnet':
+            algorithm = 'tabnet_pretraining'
+        elif algorithm_name in ('swap_dae', 'swapdae'):
+            algorithm = 'swap_dae_pretraining'
+        else:
+            raise ValueError('Not supported pre-training algorithm.')
+        
         trainer = get_trainer(training_type=algorithm)
         criterion = get_loss(algorithm).to(self.device)
+
+        if algorithm == 'swap_dae_pretraining':
+            if isinstance(feats, np.ndarray):
+                feats = pd.DataFrame(feats)
+
+            swap_rate = algorithm_params.get('swap_rate')
+            if swap_rate is None:
+                swap_rate = 0.15
+
+            # dummy 
+            train_loader = SwapNoiseDataset(feats, swap_rate=swap_rate)
+
+        else:
+            train_loader = create_data_loader(
+                feats, None, batch_size, self.is_shuffle, self.num_workers, self.pin_memory
+            )
 
         # start training
         show_message('[TabNet] start training.', logger=self.logger, level='INFO')
@@ -413,7 +430,9 @@ class BaseTabNet(BaseEstimator, abc.ABC):
 
             train_meter = trainer.train_epoch(
                 self._model, train_loader, criterion, self._optimizer, 
-                self._post_processor, self._metrics, self.device
+                self._post_processor, self._metrics, self.device, 
+                batch_size=batch_size, shuffle=self.is_shuffle, 
+                pin_memory=self.pin_memory, num_workers=self.num_workers
             )
 
             self._update_meters(train_meter, 'train')
@@ -565,6 +584,21 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         return predictions
     
     def explain(self, feats, **kwargs):
+        """
+        Calculate the instance-wise explanation.
+
+        Arguments:
+            feats (numpy.ndarray or pandas.DataFrame):
+                Input features.
+
+        Returns:
+            instance_importances (numpy.ndarray):
+                Instance-wise feature importances matrix with shape = (num_rows, num_cols).
+
+            output_masks (dict contains numpy.ndarray):
+                Attentive masks in each decision step.
+
+        """
         # TODO for embedding encoding
         # TODO global importances
 
@@ -613,7 +647,7 @@ class BaseTabNet(BaseEstimator, abc.ABC):
                 Input features.
 
         Returns:
-            reprs (torch.Tensor):
+            reprs (numpy.ndarray):
                 Feature representation extracted from TabNetEncoder.
 
         """

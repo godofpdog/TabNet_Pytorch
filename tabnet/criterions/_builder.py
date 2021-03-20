@@ -13,7 +13,8 @@ from ._regression import (
 )
 
 from ._pretraining import (
-    TabNetPretrainingLoss
+    TabNetPretrainingLoss,
+    SwapDAELoss
 )
 
 from ._base import _Criterion
@@ -26,7 +27,8 @@ SUPPORTED_LOSSES = {
     'mse': MSELoss,
     'mae': MAELoss,
 
-    'tabnet_pretraining': TabNetPretrainingLoss
+    'tabnet_pretraining': TabNetPretrainingLoss,
+    'swap_dae_pretraining': SwapDAELoss
 }
 
 
