@@ -506,13 +506,15 @@ class SwapDAEPreTrainer(_BaseTrainer):
         optimizer.zero_grad()
 
         # process data
-        data = data.to(device)
+        feats, targets = data
+        feats = feats.to(device)
+        targets = targets.to(device)
 
         # forward
-        outputs, mask_loss, binary_mask = model(data)
+        preds, mask_loss, _ = model(feats)
 
         # calc loss
-        task_loss = criterion(outputs, data, mask=binary_mask)
+        task_loss = criterion(preds, targets)
         total_loss = task_loss - mask_loss * 1e-3  # TODO as argument
 
         # update params
