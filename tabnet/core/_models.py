@@ -802,10 +802,32 @@ class _BasePretextModel(nn.Module, abc.ABC):
         return 
 
 
+class SwapDAEPreTextModel(_BasePretextModel):
+    """
+    Implementation of Swap DAE pretext task model for self-supervised pre-training described in:
+    https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927
+
+    The `SwapDAEPreTextModel` module contains two sub-modules:
+    """
+    def __init__(
+        self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, num_shared=2, 
+        virtual_batch_size=128, momentum=0.02, **kwargs):
+        super(SwapDAEPreTextModel, self).__init__()
+        self.decoder = TabNetDecoder(
+            input_dims, reprs_dims, num_steps, num_indep, num_shared, virtual_batch_size, momentum
+        )
+
+    def pre_process(self, x):
+        return _, x
+
+    def post_process(self, x):
+        return self.decoder(x)
+
+
 class TabNetPretextModel(_BasePretextModel):
     """
     Implementation of default pretext task model for 
-    sulf-supervised pre-training described in TabNet paper.
+    self-supervised pre-training described in TabNet paper.
 
     The `TabNetPretextModel` module contains two sub-modules:
         (1) A `BinaryMasker` module to generate pretext task target and the initial prior.
@@ -814,8 +836,7 @@ class TabNetPretextModel(_BasePretextModel):
     """
     def __init__(
         self, input_dims, reprs_dims=8, num_steps=3, num_indep=2, num_shared=2, 
-        virtual_batch_size=128, momentum=0.02, mask_rate=0.2, **kwargs
-    ):
+        virtual_batch_size=128, momentum=0.02, mask_rate=0.2, **kwargs):
         """
         Initialization of `TabNetPretextModel` module.
 
@@ -878,7 +899,6 @@ class PretrainModel(nn.Module):
     
     """
     def __init__(self, embedding_encoder, tabnet_encoder, pretext_model):
-        super(PretrainModel, self).__init__()
         """
         Initialization of `PretrainModel` module.
 
@@ -896,6 +916,8 @@ class PretrainModel(nn.Module):
             None
 
         """
+        super(PretrainModel, self).__init__()
+
         if not isinstance(embedding_encoder, EmbeddingEncoder):
             raise TypeError('Argument `embedding_encoder` must be a `EmbeddingEncoder`, but got `{}`.'.format(type(embedding_encoder)))
 

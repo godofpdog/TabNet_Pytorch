@@ -6,7 +6,8 @@ import torch
 import numpy as np 
 
 from ._models import (
-    TabNetEncoder, TabNetHead, EmbeddingEncoder, InferenceModel, PretrainModel, TabNetPretextModel
+    TabNetEncoder, TabNetHead, EmbeddingEncoder, InferenceModel, 
+    PretrainModel, TabNetPretextModel, SwapDAEPreTextModel
 )
 
 
@@ -246,12 +247,16 @@ class ModelConverter:
             if algorithm == 'tabnet_pretraining':
                 try:
                     model_configs['mask_rate'] = algorithm_params['mask_rate']
+                    pretext_model = TabNetPretextModel(**model_configs)
+                except Exception as e:
+                    print(e)
+            elif algorithm == 'swap_dae_pretraining':
+                try:
+                    pretext_model = SwapDAEPreTextModel(**model_configs)
                 except Exception as e:
                     print(e)
             else:
                 raise ValueError('Invalid training algorithm.')
-
-            pretext_model = TabNetPretextModel(**model_configs)
 
             return PretrainModel(
                 embedding_encoder, tabnet_encoder, pretext_model
