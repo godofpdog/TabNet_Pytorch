@@ -409,17 +409,17 @@ class SwapDAEPreTrainer(_BaseTrainer):
 
     def train_epoch(self, model, dataset, criterion, optimizer,
                     post_processor=None, metrics=None, device='cpu', 
-                    batch_size=512, shuffle=True, pin_memory=True, num_workers=2):
+                    batch_size=512, shuffle=True, pin_memory=True, num_workers=2, **kwargs):
 
         return self._run_epoch(
             model, dataset, criterion, optimizer,
             post_processor, metrics, device, True,
-            batch_size, shuffle, pin_memory, num_workers
+            batch_size, shuffle, pin_memory, num_workers, **kwargs
         )
 
     def _run_epoch(self, model, dataset, criterion, optimizer,
                    post_processor=None, metrics=None, device='cpu', is_train=True, 
-                   batch_size=512, shuffle=True, pin_memory=True, num_workers=2):
+                   batch_size=512, shuffle=True, pin_memory=True, num_workers=2, **kwargs):
         """
         Run one epoch, override from `_BaseTrainer`. Apply swap augmentation every epoch.
 
@@ -476,7 +476,8 @@ class SwapDAEPreTrainer(_BaseTrainer):
 
         return meter
 
-    def train_batch(self, model, data, criterion, optimizer, post_processor=None, metrics=None, device='cpu'):
+    def train_batch(self, model, data, criterion, optimizer, 
+                    post_processor=None, metrics=None, device='cpu', **kwargs):
         """
         Train on one batch.
 
