@@ -393,10 +393,12 @@ class BaseTabNet(BaseEstimator, abc.ABC):
         # setup trainer and criterion
         algorithm_name = algorithm_params['algorithm']
 
-        if algorithm_name == 'tabnet':
+        if algorithm_name in ('tabnet', 'tabnet_pretraining'):
             algorithm = 'tabnet_pretraining'
-        elif algorithm_name in ('swap_dae', 'swapdae'):
+
+        elif algorithm_name in ('swap_dae', 'swapdae', 'swap_dae_pretraining'):
             algorithm = 'swap_dae_pretraining'
+
         else:
             raise ValueError('Not supported pre-training algorithm.')
         

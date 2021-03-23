@@ -244,17 +244,19 @@ class ModelConverter:
             # TODO support SwapDAE pre-training algorithm
             algorithm = algorithm_params['algorithm']
 
-            if algorithm == 'tabnet_pretraining':
+            if algorithm in ('tabnet', 'tabnet_pretraining'):
                 try:
                     model_configs['mask_rate'] = algorithm_params['mask_rate']
                     pretext_model = TabNetPretextModel(**model_configs)
                 except Exception as e:
                     print(e)
+
             elif algorithm in ('swap_dae', 'swapdae', 'swap_dae_pretraining'):
                 try:
                     pretext_model = SwapDAEPreTextModel(**model_configs)
                 except Exception as e:
                     print(e)
+                    
             else:
                 raise ValueError('Invalid training algorithm.')
 
